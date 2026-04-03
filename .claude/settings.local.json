@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh auth:*)",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}
