@@ -437,7 +437,22 @@ export default function App() {
               const file = e.target.files[0];
               if (!file) return;
               const reader = new FileReader();
-              reader.onload = ev => { try { setProducts(JSON.parse(ev.target.result)); } catch { alert("Fichier JSON invalide"); } };
+              reader.onload = ev => {
+                try {
+                  const parsed = JSON.parse(ev.target.result);
+                  // Compatibilité ancien format : costco.price → costco.regular
+                  const normalized = parsed.map(p => ({
+                    ...p,
+                    costco: p.costco ? {
+                      regular: p.costco.regular ?? p.costco.price ?? null,
+                      promo: p.costco.promo ?? null,
+                      qty: p.costco.qty ?? null,
+                      unit: p.costco.unit ?? "100g",
+                    } : { regular: null, promo: null, qty: null, unit: "100g" },
+                  }));
+                  setProducts(normalized);
+                } catch { alert("Fichier JSON invalide"); }
+              };
               reader.readAsText(file);
               e.target.value = "";
             }} />
