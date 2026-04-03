@@ -5,10 +5,10 @@ const UNITS = ["100g", "100ml", "unité", "kg", "litre", "portion", "g", "ml", "
 const GIST_FILENAME = "prixQC.json";
 
 const SAMPLE_DATA = [
-  { id: 1, name: "Parmesan râpé", category: "Produits laitiers", costco: { price: 14.99, qty: 1000, unit: "100g" }, maxi: { regular: 5.49, promo: null, qty: 200, unit: "100g" }, superc: { regular: 5.29, promo: 3.99, qty: 200, unit: "100g" } },
-  { id: 2, name: "Huile d'olive extra vierge", category: "Épicerie sèche", costco: { price: 16.99, qty: 2000, unit: "100ml" }, maxi: { regular: 8.99, promo: null, qty: 500, unit: "100ml" }, superc: { regular: 8.49, promo: 6.99, qty: 500, unit: "100ml" } },
-  { id: 3, name: "Amandes nature", category: "Épicerie sèche", costco: { price: 18.99, qty: 1360, unit: "100g" }, maxi: { regular: 7.99, promo: null, qty: 200, unit: "100g" }, superc: { regular: 7.49, promo: null, qty: 200, unit: "100g" } },
-  { id: 4, name: "Saumon Atlantique", category: "Viandes", costco: { price: 9.99, qty: 100, unit: "100g" }, maxi: { regular: 3.99, promo: null, qty: 100, unit: "100g" }, superc: { regular: 3.79, promo: 2.99, qty: 100, unit: "100g" } },
+  { id: 1, name: "Parmesan râpé", category: "Produits laitiers", costco: { regular: 14.99, promo: null, qty: 1000, unit: "100g" }, maxi: { regular: 5.49, promo: null, qty: 200, unit: "100g" }, superc: { regular: 5.29, promo: 3.99, qty: 200, unit: "100g" } },
+  { id: 2, name: "Huile d'olive extra vierge", category: "Épicerie sèche", costco: { regular: 16.99, promo: null, qty: 2000, unit: "100ml" }, maxi: { regular: 8.99, promo: null, qty: 500, unit: "100ml" }, superc: { regular: 8.49, promo: 6.99, qty: 500, unit: "100ml" } },
+  { id: 3, name: "Amandes nature", category: "Épicerie sèche", costco: { regular: 18.99, promo: null, qty: 1360, unit: "100g" }, maxi: { regular: 7.99, promo: null, qty: 200, unit: "100g" }, superc: { regular: 7.49, promo: null, qty: 200, unit: "100g" } },
+  { id: 4, name: "Saumon Atlantique", category: "Viandes", costco: { regular: 9.99, promo: null, qty: 100, unit: "100g" }, maxi: { regular: 3.99, promo: null, qty: 100, unit: "100g" }, superc: { regular: 3.79, promo: 2.99, qty: 100, unit: "100g" } },
 ];
 
 // ── Gist API helpers ──────────────────────────────────────────────────────────
@@ -71,7 +71,7 @@ function calcUnitPrice(price, qty, unit) {
 
 function getBestDeal(item) {
   const prices = [
-    { store: "Costco", unit: calcUnitPrice(item.costco?.price, item.costco?.qty, item.costco?.unit) },
+    { store: "Costco", unit: calcUnitPrice(item.costco?.promo || item.costco?.regular, item.costco?.qty, item.costco?.unit) },
     { store: "Maxi", unit: calcUnitPrice(item.maxi?.promo || item.maxi?.regular, item.maxi?.qty, item.maxi?.unit) },
     { store: "Super C", unit: calcUnitPrice(item.superc?.promo || item.superc?.regular, item.superc?.qty, item.superc?.unit) },
   ].filter(p => p.unit !== null);
@@ -131,7 +131,7 @@ function ProductCard({ item, onEdit, onDelete }) {
         </div>
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <PriceTag label="COSTCO" price={item.costco?.price} qty={item.costco?.qty} unit={item.costco?.unit || "100g"} isBest={best === "Costco"} />
+        <PriceTag label="COSTCO" price={item.costco?.promo || item.costco?.regular} qty={item.costco?.qty} unit={item.costco?.unit || "100g"} isPromo={!!item.costco?.promo} isBest={best === "Costco"} />
         <PriceTag label="MAXI" price={item.maxi?.promo || item.maxi?.regular} qty={item.maxi?.qty} unit={item.maxi?.unit || "100g"} isPromo={!!item.maxi?.promo} isBest={best === "Maxi"} />
         <PriceTag label="SUPER C" price={item.superc?.promo || item.superc?.regular} qty={item.superc?.qty} unit={item.superc?.unit || "100g"} isPromo={!!item.superc?.promo} isBest={best === "Super C"} />
       </div>
@@ -155,8 +155,7 @@ function InputRow({ label, storeKey, form, setForm }) {
           onChange={e => setForm(f => ({ ...f, [storeKey]: { ...f[storeKey], price: e.target.value } }))}
           style={inputStyle}
         />
-        {storeKey !== "costco" && (
-          <input type="number" placeholder="Promo ($)" step="0.01"
+        <input type="number" placeholder="Promo ($)" step="0.01"
             value={form[storeKey]?.promo || ""}
             onChange={e => setForm(f => ({ ...f, [storeKey]: { ...f[storeKey], promo: e.target.value } }))}
             style={{ ...inputStyle, borderColor: "rgba(251,191,36,0.3)" }}
@@ -180,7 +179,7 @@ function InputRow({ label, storeKey, form, setForm }) {
 
 const emptyForm = {
   name: "", category: "Épicerie sèche",
-  costco: { price: "", qty: "", unit: "100g" },
+  costco: { price: "", promo: "", qty: "", unit: "100g" },
   maxi: { price: "", promo: "", qty: "", unit: "100g" },
   superc: { price: "", promo: "", qty: "", unit: "100g" },
 };
@@ -361,7 +360,7 @@ export default function App() {
       id: editId || Date.now(),
       name: form.name,
       category: form.category,
-      costco: { price: toNum(form.costco.price), qty: toNum(form.costco.qty), unit: form.costco.unit },
+      costco: { regular: toNum(form.costco.price), promo: toNum(form.costco.promo), qty: toNum(form.costco.qty), unit: form.costco.unit },
       maxi: { regular: toNum(form.maxi.price), promo: toNum(form.maxi.promo), qty: toNum(form.maxi.qty), unit: form.maxi.unit },
       superc: { regular: toNum(form.superc.price), promo: toNum(form.superc.promo), qty: toNum(form.superc.qty), unit: form.superc.unit },
     };
@@ -374,7 +373,7 @@ export default function App() {
   const handleEdit = (item) => {
     setForm({
       name: item.name, category: item.category,
-      costco: { price: item.costco?.price || "", qty: item.costco?.qty || "", unit: item.costco?.unit || "100g" },
+      costco: { price: item.costco?.regular || "", promo: item.costco?.promo || "", qty: item.costco?.qty || "", unit: item.costco?.unit || "100g" },
       maxi: { price: item.maxi?.regular || "", promo: item.maxi?.promo || "", qty: item.maxi?.qty || "", unit: item.maxi?.unit || "100g" },
       superc: { price: item.superc?.regular || "", promo: item.superc?.promo || "", qty: item.superc?.qty || "", unit: item.superc?.unit || "100g" },
     });
@@ -493,7 +492,7 @@ export default function App() {
           >
             {CATEGORIES.filter(c => c !== "Tous").map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <InputRow label="COSTCO — Prix · Quantité · Unité" storeKey="costco" form={form} setForm={setForm} />
+          <InputRow label="COSTCO — Prix régulier · Promo · Quantité · Unité" storeKey="costco" form={form} setForm={setForm} />
           <InputRow label="MAXI — Prix régulier · Promo · Quantité · Unité" storeKey="maxi" form={form} setForm={setForm} />
           <InputRow label="SUPER C — Prix régulier · Promo · Quantité · Unité" storeKey="superc" form={form} setForm={setForm} />
           <button
