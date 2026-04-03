@@ -402,7 +402,7 @@ export default function App() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <div>
             <div style={{ fontSize: "22px", fontWeight: 800, letterSpacing: "-0.03em", color: "#f1f5f9" }}>
-              prix<span style={{ color: "#818cf8" }}>QC</span>
+              Prix <span style={{ color: "#818cf8" }}>Costco</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 1 }}>
               <div style={{ fontSize: "11px", color: "#4b5563", fontFamily: "monospace" }}>Costco · Maxi · Super C</div>
