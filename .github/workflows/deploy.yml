@@ -7,27 +7,43 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
       - name: Setup Node 24
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
+          cache: pnpm
 
       - name: Install dependencies
-        run: npm install
+        run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: npm run build
+        run: pnpm run build
 
-      - name: Deploy to gh-pages
-        uses: JamesIves/github-pages-deploy-action@v4
-        with:
-          folder: dist
+      - name: Deploy to GitHub Pages
+        run: |
+          cd dist
+          git init
+          git config user.email "bot@github.com"
+          git config user.name "GitHub Pages Bot"
+          git add .
+          git commit -m "Deploy: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          git push --force https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:gh-pages
