@@ -156,11 +156,10 @@ function InputRow({ label, storeKey, form, setForm }) {
           style={inputStyle}
         />
         <input type="number" placeholder="Promo ($)" step="0.01"
-            value={form[storeKey]?.promo || ""}
-            onChange={e => setForm(f => ({ ...f, [storeKey]: { ...f[storeKey], promo: e.target.value } }))}
-            style={{ ...inputStyle, borderColor: "rgba(251,191,36,0.3)" }}
-          />
-        )}
+          value={form[storeKey]?.promo || ""}
+          onChange={e => setForm(f => ({ ...f, [storeKey]: { ...f[storeKey], promo: e.target.value } }))}
+          style={{ ...inputStyle, borderColor: "rgba(251,191,36,0.3)" }}
+        />
         <input type="number" placeholder="Qté"
           value={form[storeKey]?.qty || ""}
           onChange={e => setForm(f => ({ ...f, [storeKey]: { ...f[storeKey], qty: e.target.value } }))}
