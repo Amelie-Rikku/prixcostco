@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { fetchStoreItems } from "./flippApi";
 import { findTopMatches } from "./fuzzyMatch";
 
@@ -236,6 +236,9 @@ export default function FlippPanel({ products, memory, onConfirm, onClose }) {
   const [statusMsg, setStatusMsg] = useState("");
   const [pending,   setPending]   = useState([]);
   const [toCreate,  setToCreate]  = useState([]);
+
+  // Auto-start search on mount
+  useEffect(() => { handleSearch(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Search ──────────────────────────────────────────────────────────────────
 

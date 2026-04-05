@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import FlippPanel from "./FlippPanel";
 
 const CATEGORIES = ["Tous", "Viandes", "Produits laitiers", "Épicerie sèche", "Fruits & légumes", "Surgelés", "Hygiène/Maison", "Autre"];
 const UNITS = ["100g", "100ml", "unité", "kg", "litre", "portion", "g", "ml", "lb"];
 const GIST_FILENAME = "prixQC.json";
+const MEMORY_FILENAME = "prixQC-memory.json";
 
 const SAMPLE_DATA = [
   { id: 1, name: "Parmesan râpé", category: "Produits laitiers", costco: { regular: 14.99, promo: null, qty: 1000, unit: "100g" }, maxi: { regular: 5.49, promo: null, qty: 200, unit: "100g" }, superc: { regular: 5.29, promo: 3.99, qty: 200, unit: "100g" } },
@@ -48,6 +50,26 @@ async function gistSave(token, gistId, products) {
     }),
   });
   if (!res.ok) throw new Error(`Gist save failed: ${res.status}`);
+}
+
+async function memoryLoad(token, gistId) {
+  const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" },
+  });
+  if (!res.ok) return {};
+  const data = await res.json();
+  const content = data.files?.[MEMORY_FILENAME]?.content;
+  return content ? JSON.parse(content) : {};
+}
+
+async function memorySave(token, gistId, memory) {
+  await fetch(`https://api.github.com/gists/${gistId}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/vnd.github+json" },
+    body: JSON.stringify({
+      files: { [MEMORY_FILENAME]: { content: JSON.stringify(memory, null, 2) } },
+    }),
+  });
 }
 
 // ── Utility ───────────────────────────────────────────────────────────────────
@@ -280,6 +302,11 @@ export default function App() {
   const [showForm, setShowForm] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showFlipp, setShowFlipp] = useState(false);
+  const [matchMemory, setMatchMemory] = useState(() => {
+    try { const s = localStorage.getItem("prixQC-memory"); return s ? JSON.parse(s) : {}; }
+    catch { return {}; }
+  });
   const [form, setForm] = useState(emptyForm);
   const [editId, setEditId] = useState(null);
 
@@ -382,6 +409,17 @@ export default function App() {
 
   const handleDelete = (id) => setProducts(prev => prev.filter(p => p.id !== id));
 
+  const handleFlippConfirm = async (updatedProducts, newMemory) => {
+    setProducts(updatedProducts);
+    setMatchMemory(newMemory);
+    setShowFlipp(false);
+    // Persist memory
+    try { localStorage.setItem("prixQC-memory", JSON.stringify(newMemory)); } catch {}
+    if (gistToken && gistId) {
+      try { await memorySave(gistToken, gistId, newMemory); } catch {}
+    }
+  };
+
   return (
     <div style={{ minHeight: "100vh", background: "#080c14", color: "#f1f5f9", fontFamily: "'Syne', sans-serif" }}>
       <style>{`
@@ -409,11 +447,18 @@ export default function App() {
           </div>
           <div style={{ display: "flex", gap: 6 }}>
             <button
-              onClick={() => { setShowSettings(v => !v); setShowForm(false); setShowExport(false); }}
+              onClick={() => { setShowSettings(v => !v); setShowForm(false); setShowExport(false); setShowFlipp(false); }}
               title="Paramètres Gist"
               style={{ background: showSettings ? "rgba(99,102,241,0.2)" : (gistToken ? "rgba(134,239,172,0.1)" : "rgba(255,255,255,0.05)"), border: `1px solid ${showSettings ? "rgba(99,102,241,0.4)" : (gistToken ? "rgba(134,239,172,0.3)" : "rgba(255,255,255,0.08)")}`, borderRadius: "10px", padding: "8px 11px", color: gistToken ? "#86efac" : "#6b7280", cursor: "pointer", fontSize: "14px" }}
             >
               ☁
+            </button>
+            <button
+              onClick={() => { setShowFlipp(v => !v); setShowForm(false); setShowExport(false); setShowSettings(false); }}
+              title="Synchroniser les promos Flipp"
+              style={{ background: showFlipp ? "rgba(251,191,36,0.2)" : "rgba(255,255,255,0.05)", border: `1px solid ${showFlipp ? "rgba(251,191,36,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: "10px", padding: "8px 11px", color: showFlipp ? "#fbbf24" : "#6b7280", cursor: "pointer", fontSize: "14px" }}
+            >
+              🏷️
             </button>
             <button
               onClick={() => { setShowForm(!showForm); setEditId(null); setForm(emptyForm); setShowSettings(false); }}
@@ -465,6 +510,16 @@ export default function App() {
         <SettingsPanel
           onClose={() => setShowSettings(false)}
           onSaved={handleSettingsSaved}
+        />
+      )}
+
+      {/* Flipp Panel */}
+      {showFlipp && (
+        <FlippPanel
+          products={products}
+          memory={matchMemory}
+          onConfirm={handleFlippConfirm}
+          onClose={() => setShowFlipp(false)}
         />
       )}
 
