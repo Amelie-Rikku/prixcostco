@@ -17,16 +17,18 @@ const CATEGORIES = [
 
 function buildPending(products, flyerItems, memory) {
   const rows = [];
+  const matchedIds = {}; // { storeKey: Set<itemId> }
+
   for (const { key: storeKey, label: storeLabel } of STORES) {
     const items = flyerItems[storeKey] ?? [];
+    matchedIds[storeKey] = new Set();
+
     for (const product of products) {
       const memKey = `${product.id}_${storeKey}`;
       const mem    = memory[memKey];
 
       let suggestions = findTopMatches(product.name, items);
-      if (!suggestions.length) continue;
-
-      let selectedIdx = 0;
+      let selectedIdx = suggestions.length > 0 ? 0 : null;
       let fromMemory  = false;
 
       if (mem) {
@@ -43,6 +45,8 @@ function buildPending(products, flyerItems, memory) {
         }
       }
 
+      suggestions.forEach(s => matchedIds[storeKey].add(s.item.id));
+
       rows.push({
         productId: product.id, productName: product.name,
         storeKey, storeLabel, suggestions,
@@ -50,7 +54,15 @@ function buildPending(products, flyerItems, memory) {
       });
     }
   }
-  return rows;
+
+  // Items from the circular that didn't match any existing product
+  const unmatched = {};
+  for (const { key } of STORES) {
+    const items = flyerItems[key] ?? [];
+    unmatched[key] = items.filter(i => !matchedIds[key]?.has(i.id));
+  }
+
+  return { rows, unmatched };
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
@@ -235,7 +247,9 @@ export default function FlippPanel({ products, memory, onConfirm, onClose }) {
   const [status,    setStatus]    = useState("idle");
   const [statusMsg, setStatusMsg] = useState("");
   const [pending,   setPending]   = useState([]);
-  const [toCreate,  setToCreate]  = useState([]);
+  const [toCreate,   setToCreate]   = useState([]);
+  const [unmatched,  setUnmatched]  = useState({});
+  const [unmatchSearch, setUnmatchSearch] = useState({});
 
   // Auto-start search on mount
   useEffect(() => { handleSearch(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -254,11 +268,13 @@ export default function FlippPanel({ products, memory, onConfirm, onClose }) {
       catch (e) { items[key] = []; console.warn(`${label}:`, e.message); }
     }
 
-    const rows = buildPending(products, items, memory);
+    const { rows, unmatched: unmatchedItems } = buildPending(products, items, memory);
     setPending(rows);
+    setUnmatched(unmatchedItems);
     setStatus("ready");
     const autoCount = rows.filter(r => r.fromMemory).length;
-    setStatusMsg(`${rows.length} suggestion(s) · ${autoCount} auto depuis la mémoire`);
+    const unmatchedCount = Object.values(unmatchedItems).reduce((s, a) => s + a.length, 0);
+    setStatusMsg(`${rows.length} suggestion(s) · ${autoCount} auto · ${unmatchedCount} items Flipp non matchés`);
   };
 
   // ── Row changes ─────────────────────────────────────────────────────────────
@@ -421,6 +437,53 @@ export default function FlippPanel({ products, memory, onConfirm, onClose }) {
               </div>
             )}
           </div>
+
+          {/* Items Flipp non matchés */}
+          {STORES.map(({ key, label }) => {
+            const items = unmatched[key] ?? [];
+            if (!items.length) return null;
+            const q = (unmatchSearch[key] ?? "").toLowerCase();
+            const filtered = q
+              ? items.filter(i => (i.name ?? "").toLowerCase().includes(q))
+              : items;
+            return (
+              <div key={key} style={{ margin: "0 16px 12px", padding: "12px 14px", background: "rgba(251,191,36,0.03)", border: "1px solid rgba(251,191,36,0.12)", borderRadius: "12px" }}>
+                <div style={{ fontSize: "10px", fontFamily: "monospace", letterSpacing: "0.1em", color: "#fbbf24", marginBottom: 8 }}>
+                  ── {label} — {items.length} ITEMS NON MATCHÉS ─────────────
+                </div>
+                <input
+                  placeholder={`Rechercher dans ${label}...`}
+                  value={unmatchSearch[key] ?? ""}
+                  onChange={e => setUnmatchSearch(prev => ({ ...prev, [key]: e.target.value }))}
+                  style={{ ...inputSt, width: "100%", marginBottom: 8 }}
+                />
+                <div style={{ maxHeight: "180px", overflowY: "auto" }}>
+                  {filtered.slice(0, 50).map((item, i) => {
+                    const queued = toCreate.some(c => c.flippItem.id === item.id && c.storeKey === key);
+                    return (
+                      <div key={item.id ?? i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 4px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                        <span style={{ flex: 1, fontSize: "12px", color: "#94a3b8", fontFamily: "monospace" }}>{item.name}</span>
+                        <span style={{ fontSize: "12px", color: "#fbbf24", fontFamily: "monospace", marginRight: 4 }}>{formatPrice(item)}</span>
+                        <button
+                          onClick={() => handleAddCreate(item, key, label)}
+                          style={{
+                            flexShrink: 0, width: 26, height: 26, borderRadius: "6px", border: "1px solid",
+                            cursor: "pointer", fontSize: "13px", display: "flex", alignItems: "center", justifyContent: "center",
+                            background: queued ? "rgba(134,239,172,0.15)" : "rgba(255,255,255,0.05)",
+                            borderColor: queued ? "rgba(134,239,172,0.4)" : "rgba(255,255,255,0.1)",
+                            color: queued ? "#86efac" : "#6b7280",
+                          }}
+                        >{queued ? "✓" : "+"}</button>
+                      </div>
+                    );
+                  })}
+                  {filtered.length === 0 && (
+                    <div style={{ fontSize: "11px", color: "#4b5563", fontFamily: "monospace", padding: "8px 0" }}>Aucun résultat</div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
 
           {/* Items à créer */}
           <ToCreateSection
