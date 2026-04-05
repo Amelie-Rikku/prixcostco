@@ -262,10 +262,11 @@ export default function FlippPanel({ products, memory, onConfirm, onClose }) {
     setToCreate([]);
     const items = {};
 
+    const errors = [];
     for (const { key, label } of STORES) {
       setStatusMsg(`Chargement de ${label}...`);
       try { items[key] = await fetchStoreItems(postalCode, key); }
-      catch (e) { items[key] = []; console.warn(`${label}:`, e.message); }
+      catch (e) { items[key] = []; errors.push(`${label}: ${e.message}`); }
     }
 
     const { rows, unmatched: unmatchedItems } = buildPending(products, items, memory);
@@ -274,7 +275,9 @@ export default function FlippPanel({ products, memory, onConfirm, onClose }) {
     setStatus("ready");
     const autoCount = rows.filter(r => r.fromMemory).length;
     const unmatchedCount = Object.values(unmatchedItems).reduce((s, a) => s + a.length, 0);
-    setStatusMsg(`${rows.length} suggestion(s) · ${autoCount} auto · ${unmatchedCount} items Flipp non matchés`);
+    const totalItems = Object.values(items).reduce((s, a) => s + a.length, 0);
+    const errMsg = errors.length ? ` ⚠️ ${errors.join(" | ")}` : "";
+    setStatusMsg(`${totalItems} items Flipp · ${rows.filter(r=>r.suggestions.length>0).length} matchés · ${unmatchedCount} non matchés${errMsg}`);
   };
 
   // ── Row changes ─────────────────────────────────────────────────────────────
