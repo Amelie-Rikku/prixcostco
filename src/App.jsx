@@ -179,6 +179,11 @@ function InputRow({ label, storeKey, form, setForm }) {
     <div style={{ marginBottom: 12 }}>
       <div style={{ fontSize: "11px", color: "#9ca3af", fontFamily: "monospace", marginBottom: 6, letterSpacing: "0.08em" }}>{label}</div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <input type="text" placeholder="Description produit"
+          value={form[storeKey]?.desc || ""}
+          onChange={e => setForm(f => ({ ...f, [storeKey]: { ...f[storeKey], desc: e.target.value } }))}
+          style={{ ...inputStyle, width: "200px", fontSize: "11px" }}
+        />
         <input type="number" placeholder="Prix ($)" step="0.01"
           value={form[storeKey]?.price || ""}
           onChange={e => setForm(f => ({ ...f, [storeKey]: { ...f[storeKey], price: e.target.value } }))}
