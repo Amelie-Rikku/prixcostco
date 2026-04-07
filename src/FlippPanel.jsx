@@ -361,7 +361,7 @@ export default function FlippPanel({ products, memory, onConfirm, onClose }) {
       if (price == null) continue;
 
       if (!promoMap[match.productId]) promoMap[match.productId] = {};
-      promoMap[match.productId][match.storeKey] = price;
+      promoMap[match.productId][match.storeKey] = { price, desc: sugg.item.name ?? null };
 
       if (match.remember) {
         newMemory[`${match.productId}_${match.storeKey}`] = {
