@@ -28,7 +28,7 @@ function buildPending(products, flyerItems, memory) {
       const mem    = memory[memKey];
 
       let suggestions = findTopMatches(product.name, items);
-      let selectedIdx = suggestions.length > 0 ? 0 : null;
+      let selectedIdx = null;
       let fromMemory  = false;
 
       if (mem) {
