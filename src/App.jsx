@@ -105,7 +105,8 @@ function getBestDeal(item) {
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function PriceTag({ label, price, qty, unit, isPromo, isBest }) {
-  const { perPrice, perLabel } = normalizeUnitPrice(price, qty, unit);
+  const numPrice = price != null ? Number(price) : null;
+  const { perPrice, perLabel } = normalizeUnitPrice(numPrice, qty, unit);
   return (
     <div style={{
       background: isBest ? "rgba(134,239,172,0.15)" : "rgba(255,255,255,0.04)",
