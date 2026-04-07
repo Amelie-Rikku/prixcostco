@@ -1,3 +1,4 @@
+// Mots ignorés lors du matching fuzzy
 const STOPWORDS = new Set([
   "de", "du", "des", "le", "la", "les", "et", "en", "au", "aux",
   "un", "une", "l", "d", "a", "avec", "sans", "sur", "pour",
