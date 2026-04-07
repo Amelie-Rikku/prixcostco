@@ -212,9 +212,9 @@ function InputRow({ label, storeKey, form, setForm }) {
 
 const emptyForm = {
   name: "", category: "Épicerie sèche",
-  costco: { price: "", promo: "", qty: "", unit: "100g" },
-  maxi: { price: "", promo: "", qty: "", unit: "100g" },
-  superc: { price: "", promo: "", qty: "", unit: "100g" },
+  costco: { price: "", promo: "", qty: "", unit: "100g", desc: "" },
+  maxi: { price: "", promo: "", qty: "", unit: "100g", desc: "" },
+  superc: { price: "", promo: "", qty: "", unit: "100g", desc: "" },
 };
 
 // ── Settings panel ────────────────────────────────────────────────────────────
