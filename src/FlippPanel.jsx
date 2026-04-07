@@ -294,7 +294,7 @@ export default function FlippPanel({ products, memory, onConfirm, onClose }) {
 
   // ── Create queue ────────────────────────────────────────────────────────────
 
-  const handleAddCreate = (flippItem, storeKey, storeLabel) => {
+  const handleAddCreate = (flippItem, storeKey, storeLabel, customName) => {
     setToCreate(prev => {
       // Toggle: if already queued, remove it
       if (prev.some(c => c.flippItem.id === flippItem.id && c.storeKey === storeKey)) {
@@ -305,10 +305,36 @@ export default function FlippPanel({ products, memory, onConfirm, onClose }) {
         flippItem,
         storeKey,
         storeLabel,
-        name: flippItem.name ?? "",
+        name: customName ?? flippItem.name ?? "",
         category: "Épicerie sèche",
       }];
     });
+  };
+
+  // ── Inline edit (unmatched list) ─────────────────────────────────────────────
+
+  const handleInlineOpen = (item, storeKey) => {
+    const ek = `${item.id}_${storeKey}`;
+    setInlineEdit(prev => ({ ...prev, [ek]: { name: item.name ?? "", category: "Épicerie sèche" } }));
+  };
+
+  const handleInlineUpdate = (ek, field, value) => {
+    setInlineEdit(prev => ({ ...prev, [ek]: { ...prev[ek], [field]: value } }));
+  };
+
+  const handleInlineConfirm = (ek, item, storeKey, storeLabel) => {
+    const edit = inlineEdit[ek];
+    if (!edit || !edit.name.trim()) return;
+    setToCreate(prev => [...prev, {
+      tempId: `${Date.now()}_${Math.random()}`,
+      flippItem: item, storeKey, storeLabel,
+      name: edit.name.trim(), category: edit.category,
+    }]);
+    setInlineEdit(prev => { const p = { ...prev }; delete p[ek]; return p; });
+  };
+
+  const handleInlineCancel = (ek) => {
+    setInlineEdit(prev => { const p = { ...prev }; delete p[ek]; return p; });
   };
 
   const handleUpdateCreate = (tempId, field, value) => {
