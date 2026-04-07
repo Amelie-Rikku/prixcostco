@@ -375,9 +375,9 @@ export default function FlippPanel({ products, memory, onConfirm, onClose }) {
       if (!upd) return p;
       return {
         ...p,
-        costco: upd.costco ? { ...p.costco, promo: upd.costco } : p.costco,
-        maxi:   upd.maxi   ? { ...p.maxi,   promo: upd.maxi   } : p.maxi,
-        superc: upd.superc ? { ...p.superc,  promo: upd.superc } : p.superc,
+        costco: upd.costco ? { ...p.costco, promo: upd.costco.price, desc: upd.costco.desc } : p.costco,
+        maxi:   upd.maxi   ? { ...p.maxi,   promo: upd.maxi.price,   desc: upd.maxi.desc   } : p.maxi,
+        superc: upd.superc ? { ...p.superc,  promo: upd.superc.price, desc: upd.superc.desc } : p.superc,
       };
     });
 
