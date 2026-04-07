@@ -428,7 +428,12 @@ export default function FlippPanel({ products, memory, onConfirm, onClose }) {
       .filter(c => c.name.trim())
       .map(c => {
         const price = numericPrice(c.flippItem);
-        const storeData = { regular: price, promo: null, qty: 1, unit: "unité", desc: c.flippItem.name ?? null };
+        const parsed = parseQtyUnit(c.flippItem.name);
+        const storeData = {
+          regular: price, promo: null,
+          qty: parsed?.qty ?? 1, unit: parsed?.unit ?? "unité",
+          desc: c.flippItem.name ?? null,
+        };
         return {
           id: Date.now() + Math.random(),
           name: c.name.trim(),
