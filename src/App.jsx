@@ -398,9 +398,9 @@ export default function App() {
       id: editId || Date.now(),
       name: form.name,
       category: form.category,
-      costco: { regular: toNum(form.costco.price), promo: toNum(form.costco.promo), qty: toNum(form.costco.qty), unit: form.costco.unit },
-      maxi: { regular: toNum(form.maxi.price), promo: toNum(form.maxi.promo), qty: toNum(form.maxi.qty), unit: form.maxi.unit },
-      superc: { regular: toNum(form.superc.price), promo: toNum(form.superc.promo), qty: toNum(form.superc.qty), unit: form.superc.unit },
+      costco: { regular: toNum(form.costco.price), promo: toNum(form.costco.promo), qty: toNum(form.costco.qty), unit: form.costco.unit, desc: form.costco.desc || null },
+      maxi: { regular: toNum(form.maxi.price), promo: toNum(form.maxi.promo), qty: toNum(form.maxi.qty), unit: form.maxi.unit, desc: form.maxi.desc || null },
+      superc: { regular: toNum(form.superc.price), promo: toNum(form.superc.promo), qty: toNum(form.superc.qty), unit: form.superc.unit, desc: form.superc.desc || null },
     };
     setProducts(prev => editId ? prev.map(p => p.id === editId ? product : p) : [...prev, product]);
     setForm(emptyForm);
