@@ -469,51 +469,90 @@ export default function FlippPanel({ products, memory, onConfirm, onClose }) {
           </div>
 
           {/* Items Flipp non matchés */}
-          {STORES.map(({ key, label }) => {
-            const items = unmatched[key] ?? [];
-            if (!items.length) return null;
-            const q = (unmatchSearch[key] ?? "").toLowerCase();
-            const filtered = q
-              ? items.filter(i => (i.name ?? "").toLowerCase().includes(q))
-              : items;
+          {(() => {
+            const totalUnmatched = Object.values(unmatched).reduce((s, a) => s + a.length, 0);
+            if (!totalUnmatched) return null;
             return (
-              <div key={key} style={{ margin: "0 16px 12px", padding: "12px 14px", background: "rgba(251,191,36,0.03)", border: "1px solid rgba(251,191,36,0.12)", borderRadius: "12px" }}>
-                <div style={{ fontSize: "10px", fontFamily: "monospace", letterSpacing: "0.1em", color: "#fbbf24", marginBottom: 8 }}>
-                  ── {label} — {items.length} ITEMS NON MATCHÉS ─────────────
+              <div style={{ margin: "0 16px 12px", padding: "12px 14px", background: "rgba(251,191,36,0.03)", border: "1px solid rgba(251,191,36,0.12)", borderRadius: "12px" }}>
+                <div style={{ fontSize: "10px", fontFamily: "monospace", letterSpacing: "0.1em", color: "#fbbf24", marginBottom: 10 }}>
+                  ── {totalUnmatched} ITEMS FLIPP SANS CORRESPONDANCE ─────────────
                 </div>
-                <input
-                  placeholder={`Rechercher dans ${label}...`}
-                  value={unmatchSearch[key] ?? ""}
-                  onChange={e => setUnmatchSearch(prev => ({ ...prev, [key]: e.target.value }))}
-                  style={{ ...inputSt, width: "100%", marginBottom: 8 }}
-                />
-                <div style={{ maxHeight: "180px", overflowY: "auto" }}>
-                  {filtered.slice(0, 50).map((item, i) => {
-                    const queued = toCreate.some(c => c.flippItem.id === item.id && c.storeKey === key);
+                <div style={{ maxHeight: "320px", overflowY: "auto" }}>
+                  {STORES.map(({ key, label }) => {
+                    const items = unmatched[key] ?? [];
+                    if (!items.length) return null;
                     return (
-                      <div key={item.id ?? i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 4px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                        <span style={{ flex: 1, fontSize: "12px", color: "#94a3b8", fontFamily: "monospace" }}>{item.name}</span>
-                        <span style={{ fontSize: "12px", color: "#fbbf24", fontFamily: "monospace", marginRight: 4 }}>{formatPrice(item)}</span>
-                        <button
-                          onClick={() => handleAddCreate(item, key, label)}
-                          style={{
-                            flexShrink: 0, width: 26, height: 26, borderRadius: "6px", border: "1px solid",
-                            cursor: "pointer", fontSize: "13px", display: "flex", alignItems: "center", justifyContent: "center",
-                            background: queued ? "rgba(134,239,172,0.15)" : "rgba(255,255,255,0.05)",
-                            borderColor: queued ? "rgba(134,239,172,0.4)" : "rgba(255,255,255,0.1)",
-                            color: queued ? "#86efac" : "#6b7280",
-                          }}
-                        >{queued ? "✓" : "+"}</button>
+                      <div key={key}>
+                        <div style={{ fontSize: "9px", fontFamily: "monospace", color: "#4b5563", padding: "8px 0 4px", letterSpacing: "0.1em" }}>
+                          {label} — {items.length} items
+                        </div>
+                        {items.map((item, i) => {
+                          const ek = `${item.id}_${key}`;
+                          const queued = toCreate.some(c => c.flippItem.id === item.id && c.storeKey === key);
+                          const editing = !!inlineEdit[ek];
+
+                          if (queued) {
+                            return (
+                              <div key={item.id ?? i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 4px", borderBottom: "1px solid rgba(255,255,255,0.04)", opacity: 0.45 }}>
+                                <span style={{ fontSize: "12px", color: "#86efac" }}>✓</span>
+                                <span style={{ flex: 1, fontSize: "11px", color: "#86efac", fontFamily: "monospace", textDecoration: "line-through" }}>{item.name}</span>
+                              </div>
+                            );
+                          }
+
+                          if (editing) {
+                            const edit = inlineEdit[ek];
+                            return (
+                              <div key={item.id ?? i} style={{ padding: "8px 4px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(99,102,241,0.05)", borderRadius: "6px", marginBottom: 2 }}>
+                                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                                  <input
+                                    value={edit.name}
+                                    onChange={e => handleInlineUpdate(ek, "name", e.target.value)}
+                                    onKeyDown={e => { if (e.key === "Enter") handleInlineConfirm(ek, item, key, label); if (e.key === "Escape") handleInlineCancel(ek); }}
+                                    style={{ ...inputSt, flex: 2, minWidth: 140 }}
+                                    autoFocus
+                                  />
+                                  <select
+                                    value={edit.category}
+                                    onChange={e => handleInlineUpdate(ek, "category", e.target.value)}
+                                    style={{ ...inputSt, flex: 1, minWidth: 110 }}
+                                  >
+                                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                  </select>
+                                  <button
+                                    onClick={() => handleInlineConfirm(ek, item, key, label)}
+                                    style={{ flexShrink: 0, padding: "6px 10px", borderRadius: "6px", border: "1px solid rgba(134,239,172,0.4)", background: "rgba(134,239,172,0.1)", color: "#86efac", cursor: "pointer", fontSize: "13px" }}
+                                  >✓</button>
+                                  <button
+                                    onClick={() => handleInlineCancel(ek)}
+                                    style={{ flexShrink: 0, padding: "6px 10px", borderRadius: "6px", border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#f87171", cursor: "pointer", fontSize: "13px" }}
+                                  >✕</button>
+                                </div>
+                                <div style={{ fontSize: "10px", color: "#6b7280", fontFamily: "monospace", marginTop: 4, paddingLeft: 2 }}>
+                                  {formatPrice(item)} · Flipp: {item.name}
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div key={item.id ?? i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 4px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                              <span style={{ flex: 1, fontSize: "12px", color: "#94a3b8", fontFamily: "monospace" }}>{item.name}</span>
+                              <span style={{ fontSize: "12px", color: "#fbbf24", fontFamily: "monospace", flexShrink: 0 }}>{formatPrice(item)}</span>
+                              <button
+                                onClick={() => handleInlineOpen(item, key)}
+                                style={{ flexShrink: 0, width: 26, height: 26, borderRadius: "6px", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.04)", color: "#6b7280" }}
+                              >+</button>
+                            </div>
+                          );
+                        })}
                       </div>
                     );
                   })}
-                  {filtered.length === 0 && (
-                    <div style={{ fontSize: "11px", color: "#4b5563", fontFamily: "monospace", padding: "8px 0" }}>Aucun résultat</div>
-                  )}
                 </div>
               </div>
             );
-          })}
+          })()}
 
           {/* Items à créer */}
           <ToCreateSection
