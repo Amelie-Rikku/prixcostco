@@ -160,9 +160,9 @@ function ProductCard({ item, onEdit, onDelete }) {
         </div>
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <PriceTag label="COSTCO" price={item.costco?.promo || item.costco?.regular} qty={item.costco?.qty} unit={item.costco?.unit || "100g"} isPromo={!!item.costco?.promo} isBest={best === "Costco"} />
-        <PriceTag label="MAXI" price={item.maxi?.promo || item.maxi?.regular} qty={item.maxi?.qty} unit={item.maxi?.unit || "100g"} isPromo={!!item.maxi?.promo} isBest={best === "Maxi"} />
-        <PriceTag label="SUPER C" price={item.superc?.promo || item.superc?.regular} qty={item.superc?.qty} unit={item.superc?.unit || "100g"} isPromo={!!item.superc?.promo} isBest={best === "Super C"} />
+        <PriceTag label="COSTCO" price={item.costco?.promo || item.costco?.regular} qty={item.costco?.qty} unit={item.costco?.unit || "100g"} isPromo={!!item.costco?.promo} isBest={best === "Costco"} desc={item.costco?.desc} />
+        <PriceTag label="MAXI" price={item.maxi?.promo || item.maxi?.regular} qty={item.maxi?.qty} unit={item.maxi?.unit || "100g"} isPromo={!!item.maxi?.promo} isBest={best === "Maxi"} desc={item.maxi?.desc} />
+        <PriceTag label="SUPER C" price={item.superc?.promo || item.superc?.regular} qty={item.superc?.qty} unit={item.superc?.unit || "100g"} isPromo={!!item.superc?.promo} isBest={best === "Super C"} desc={item.superc?.desc} />
       </div>
     </div>
   );
