@@ -116,7 +116,8 @@ function formatPrice(item) {
 }
 
 function numericPrice(item) {
-  return item.current_price ?? item.price ?? null;
+  const p = item.current_price ?? item.price ?? null;
+  return p != null ? Number(p) : null;
 }
 
 function emptyStore() {
