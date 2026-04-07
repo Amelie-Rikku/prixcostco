@@ -260,6 +260,7 @@ export default function FlippPanel({ products, memory, onConfirm, onClose }) {
     localStorage.setItem("postalCode", postalCode);
     setStatus("loading");
     setToCreate([]);
+    setInlineEdit({});
     const items = {};
 
     const errors = [];
