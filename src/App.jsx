@@ -75,8 +75,9 @@ async function memorySave(token, gistId, memory) {
 // ── Utility ───────────────────────────────────────────────────────────────────
 
 function normalizeUnitPrice(price, qty, unit) {
-  if (!price || !qty) return { perPrice: null, perLabel: null };
-  const raw = price / qty;
+  const p = Number(price);
+  if (!p || !qty) return { perPrice: null, perLabel: null };
+  const raw = p / qty;
   if (unit === "litre") return { perPrice: raw / 1000, perLabel: "ml" };
   if (unit === "kg") return { perPrice: raw / 1000, perLabel: "g" };
   if (unit === "100g") return { perPrice: raw / 100, perLabel: "g" };
