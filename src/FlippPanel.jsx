@@ -121,7 +121,7 @@ function numericPrice(item) {
 }
 
 function emptyStore() {
-  return { regular: null, promo: null, qty: null, unit: "unité" };
+  return { regular: null, promo: null, qty: null, unit: "unité", desc: null };
 }
 
 // ── MatchRow ──────────────────────────────────────────────────────────────────
