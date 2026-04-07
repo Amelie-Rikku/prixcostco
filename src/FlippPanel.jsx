@@ -120,6 +120,44 @@ function numericPrice(item) {
   return p != null ? Number(p) : null;
 }
 
+// Parse "423 g", "1 L", "4x100 g", "500 ml", "1.5 kg", "1 lb" etc. from item name
+function parseQtyUnit(name) {
+  if (!name) return null;
+  const s = name.toLowerCase();
+
+  // Patterns: "4x100 g" → qty=400, unit=g  |  "1,5 kg" → qty=1500, unit=g  etc.
+  const patterns = [
+    // multiplied: 4x100 g / 4 x 100g
+    { re: /(\d+)\s*x\s*(\d+(?:[.,]\d+)?)\s*(g|ml|kg|l|lb|oz)\b/i, parse: m => {
+      const count = Number(m[1]);
+      const val = Number(m[2].replace(",", "."));
+      return normalize(count * val, m[3]);
+    }},
+    // simple: 423 g, 1.5 kg, 500 ml, 1 L, 2 lb
+    { re: /(\d+(?:[.,]\d+)?)\s*(g|ml|kg|l|lb|oz)\b/i, parse: m => {
+      const val = Number(m[1].replace(",", "."));
+      return normalize(val, m[2]);
+    }},
+  ];
+
+  function normalize(val, rawUnit) {
+    const u = rawUnit.toLowerCase();
+    if (u === "kg") return { qty: val * 1000, unit: "g" };
+    if (u === "l") return { qty: val * 1000, unit: "ml" };
+    if (u === "lb") return { qty: val, unit: "lb" };
+    if (u === "oz") return { qty: val * 28.3495, unit: "g" };
+    if (u === "g") return { qty: val, unit: "g" };
+    if (u === "ml") return { qty: val, unit: "ml" };
+    return { qty: val, unit: u };
+  }
+
+  for (const { re, parse } of patterns) {
+    const m = s.match(re);
+    if (m) return parse(m);
+  }
+  return null;
+}
+
 function emptyStore() {
   return { regular: null, promo: null, qty: null, unit: "unité", desc: null };
 }
