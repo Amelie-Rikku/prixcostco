@@ -249,7 +249,7 @@ export default function FlippPanel({ products, memory, onConfirm, onClose }) {
   const [pending,   setPending]   = useState([]);
   const [toCreate,   setToCreate]   = useState([]);
   const [unmatched,  setUnmatched]  = useState({});
-  const [unmatchSearch, setUnmatchSearch] = useState({});
+  const [inlineEdit, setInlineEdit] = useState({}); // { [id_storeKey]: { name, category } }
 
   // Auto-start search on mount
   useEffect(() => { handleSearch(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
