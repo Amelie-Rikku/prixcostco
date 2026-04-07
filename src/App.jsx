@@ -104,7 +104,7 @@ function getBestDeal(item) {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function PriceTag({ label, price, qty, unit, isPromo, isBest }) {
+function PriceTag({ label, price, qty, unit, isPromo, isBest, desc }) {
   const numPrice = price != null ? Number(price) : null;
   const { perPrice, perLabel } = normalizeUnitPrice(numPrice, qty, unit);
   return (
@@ -125,6 +125,11 @@ function PriceTag({ label, price, qty, unit, isPromo, isBest }) {
             <span style={{ fontSize: "18px", fontWeight: 700, color: isPromo ? "#fbbf24" : "#f1f5f9", fontFamily: "'Syne', sans-serif" }}>${numPrice.toFixed(2)}</span>
             {isPromo && <span style={{ fontSize: "9px", color: "#fbbf24", fontFamily: "monospace" }}>PROMO</span>}
           </div>
+          {desc && (
+            <div style={{ fontSize: "9px", color: "#94a3b8", fontFamily: "monospace", marginTop: 2, lineHeight: "1.3", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={desc}>
+              {desc}
+            </div>
+          )}
           <div style={{ fontSize: "10px", color: "#6b7280", marginTop: 2 }}>
             {qty}{unit} · <span style={{ color: isBest ? "#86efac" : "#94a3b8" }}>${perPrice?.toFixed(4)}/{perLabel}</span>
           </div>
