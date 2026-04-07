@@ -119,7 +119,7 @@ function PriceTag({ label, price, qty, unit, isPromo, isBest }) {
         </span>
       )}
       <div style={{ fontSize: "10px", color: "#9ca3af", marginBottom: 4, fontFamily: "'DM Mono', monospace", letterSpacing: "0.08em" }}>{label}</div>
-      {price ? (
+      {numPrice ? (
         <>
           <div style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
             <span style={{ fontSize: "18px", fontWeight: 700, color: isPromo ? "#fbbf24" : "#f1f5f9", fontFamily: "'Syne', sans-serif" }}>${numPrice.toFixed(2)}</span>
