@@ -411,9 +411,9 @@ export default function App() {
   const handleEdit = (item) => {
     setForm({
       name: item.name, category: item.category,
-      costco: { price: item.costco?.regular || "", promo: item.costco?.promo || "", qty: item.costco?.qty || "", unit: item.costco?.unit || "100g" },
-      maxi: { price: item.maxi?.regular || "", promo: item.maxi?.promo || "", qty: item.maxi?.qty || "", unit: item.maxi?.unit || "100g" },
-      superc: { price: item.superc?.regular || "", promo: item.superc?.promo || "", qty: item.superc?.qty || "", unit: item.superc?.unit || "100g" },
+      costco: { price: item.costco?.regular || "", promo: item.costco?.promo || "", qty: item.costco?.qty || "", unit: item.costco?.unit || "100g", desc: item.costco?.desc || "" },
+      maxi: { price: item.maxi?.regular || "", promo: item.maxi?.promo || "", qty: item.maxi?.qty || "", unit: item.maxi?.unit || "100g", desc: item.maxi?.desc || "" },
+      superc: { price: item.superc?.regular || "", promo: item.superc?.promo || "", qty: item.superc?.qty || "", unit: item.superc?.unit || "100g", desc: item.superc?.desc || "" },
     });
     setEditId(item.id);
     setShowForm(true);
