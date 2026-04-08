@@ -74,29 +74,54 @@ async function memorySave(token, gistId, memory) {
 
 // ── Utility ───────────────────────────────────────────────────────────────────
 
-function normalizeUnitPrice(price, qty, unit) {
-  const p = Number(price);
-  if (!p || !qty) return { perPrice: null, perLabel: null };
-  const raw = p / qty;
-  if (unit === "litre") return { perPrice: raw / 1000, perLabel: "ml" };
-  if (unit === "kg") return { perPrice: raw / 1000, perLabel: "g" };
-  if (unit === "100g") return { perPrice: raw / 100, perLabel: "g" };
-  if (unit === "100ml") return { perPrice: raw / 100, perLabel: "ml" };
-  if (unit === "lb") return { perPrice: raw / 453.592, perLabel: "g" };
-  if (unit === "g") return { perPrice: raw, perLabel: "g" };
-  if (unit === "ml") return { perPrice: raw, perLabel: "ml" };
-  return { perPrice: raw, perLabel: "unité" };
+// Convert qty in its source unit to grams (for weight) or ml (for volume)
+function toBase(qty, unit) {
+  if (!qty) return null;
+  if (unit === "g") return { val: qty, type: "weight" };
+  if (unit === "100g") return { val: qty * 100, type: "weight" };
+  if (unit === "kg") return { val: qty * 1000, type: "weight" };
+  if (unit === "lb") return { val: qty * 453.592, type: "weight" };
+  if (unit === "ml") return { val: qty, type: "volume" };
+  if (unit === "100ml") return { val: qty * 100, type: "volume" };
+  if (unit === "litre") return { val: qty * 1000, type: "volume" };
+  return { val: qty, type: "unit" };
 }
 
-function calcUnitPrice(price, qty, unit) {
-  return normalizeUnitPrice(price, qty, unit).perPrice;
+// How many base units (g or ml) does 1 of the target perUnit represent?
+function perUnitFactor(perUnit) {
+  if (perUnit === "g") return { factor: 1, type: "weight", label: "g" };
+  if (perUnit === "100g") return { factor: 100, type: "weight", label: "100g" };
+  if (perUnit === "kg") return { factor: 1000, type: "weight", label: "kg" };
+  if (perUnit === "lb") return { factor: 453.592, type: "weight", label: "lb" };
+  if (perUnit === "ml") return { factor: 1, type: "volume", label: "ml" };
+  if (perUnit === "100ml") return { factor: 100, type: "volume", label: "100ml" };
+  if (perUnit === "litre") return { factor: 1000, type: "volume", label: "L" };
+  return { factor: 1, type: "unit", label: "unité" };
+}
+
+function calcPerPrice(price, qty, unit, perUnit) {
+  const p = Number(price);
+  if (!p || !qty) return { perPrice: null, perLabel: null };
+  const base = toBase(qty, unit);
+  const target = perUnitFactor(perUnit || "g");
+  if (!base || base.type !== target.type) {
+    // Fallback: simple price/qty
+    return { perPrice: p / qty, perLabel: target.label };
+  }
+  const pricePerBase = p / base.val; // $/g or $/ml
+  return { perPrice: pricePerBase * target.factor, perLabel: target.label };
+}
+
+function calcUnitPrice(price, qty, unit, perUnit) {
+  return calcPerPrice(price, qty, unit, perUnit).perPrice;
 }
 
 function getBestDeal(item) {
+  const pu = item.perUnit || "g";
   const prices = [
-    { store: "Costco", unit: calcUnitPrice(item.costco?.promo || item.costco?.regular, item.costco?.qty, item.costco?.unit) },
-    { store: "Maxi", unit: calcUnitPrice(item.maxi?.promo || item.maxi?.regular, item.maxi?.qty, item.maxi?.unit) },
-    { store: "Super C", unit: calcUnitPrice(item.superc?.promo || item.superc?.regular, item.superc?.qty, item.superc?.unit) },
+    { store: "Costco", unit: calcUnitPrice(item.costco?.promo || item.costco?.regular, item.costco?.qty, item.costco?.unit, pu) },
+    { store: "Maxi", unit: calcUnitPrice(item.maxi?.promo || item.maxi?.regular, item.maxi?.qty, item.maxi?.unit, pu) },
+    { store: "Super C", unit: calcUnitPrice(item.superc?.promo || item.superc?.regular, item.superc?.qty, item.superc?.unit, pu) },
   ].filter(p => p.unit !== null);
   if (!prices.length) return null;
   return prices.reduce((a, b) => a.unit < b.unit ? a : b).store;
