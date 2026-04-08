@@ -666,7 +666,7 @@ export default function App() {
             Aucun produit trouvé.<br /><span style={{ fontSize: "11px" }}>Ajoute ton premier produit ↑</span>
           </div>
         ) : (
-          filtered.map(item => <ProductCard key={item.id} item={item} onEdit={handleEdit} onDelete={handleDelete} />)
+          filtered.map(item => <ProductCard key={item.id} item={item} onEdit={handleEdit} onDelete={handleDelete} onPerUnitChange={handlePerUnitChange} />)
         )}
       </div>
     </div>
