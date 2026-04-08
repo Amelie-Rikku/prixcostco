@@ -166,8 +166,11 @@ function PriceTag({ label, price, qty, unit, isPromo, isBest, desc, perUnit }) {
   );
 }
 
-function ProductCard({ item, onEdit, onDelete }) {
+const PER_UNITS = ["g", "100g", "kg", "lb", "ml", "100ml", "litre", "unité"];
+
+function ProductCard({ item, onEdit, onDelete, onPerUnitChange }) {
   const best = getBestDeal(item);
+  const pu = item.perUnit || "g";
   return (
     <div
       style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "16px", padding: "16px", marginBottom: "12px", transition: "border-color 0.2s" }}
@@ -177,7 +180,18 @@ function ProductCard({ item, onEdit, onDelete }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
         <div>
           <div style={{ fontFamily: "'Syne', sans-serif", fontSize: "16px", fontWeight: 700, color: "#f1f5f9" }}>{item.name}</div>
-          <div style={{ fontSize: "11px", color: "#6b7280", fontFamily: "monospace", marginTop: 2 }}>{item.category}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+            <span style={{ fontSize: "11px", color: "#6b7280", fontFamily: "monospace" }}>{item.category}</span>
+            <span style={{ fontSize: "9px", color: "#4b5563" }}>·</span>
+            <span style={{ fontSize: "9px", color: "#6b7280", fontFamily: "monospace" }}>prix/</span>
+            <select
+              value={pu}
+              onChange={e => onPerUnitChange(item.id, e.target.value)}
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "5px", padding: "1px 4px", color: "#94a3b8", fontSize: "10px", fontFamily: "monospace", cursor: "pointer", outline: "none" }}
+            >
+              {PER_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </div>
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           <button onClick={() => onEdit(item)} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: "7px", padding: "5px 10px", color: "#94a3b8", cursor: "pointer", fontSize: "12px" }}>✏️</button>
@@ -185,9 +199,9 @@ function ProductCard({ item, onEdit, onDelete }) {
         </div>
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <PriceTag label="COSTCO" price={item.costco?.promo || item.costco?.regular} qty={item.costco?.qty} unit={item.costco?.unit || "100g"} isPromo={!!item.costco?.promo} isBest={best === "Costco"} desc={item.costco?.desc} />
-        <PriceTag label="MAXI" price={item.maxi?.promo || item.maxi?.regular} qty={item.maxi?.qty} unit={item.maxi?.unit || "100g"} isPromo={!!item.maxi?.promo} isBest={best === "Maxi"} desc={item.maxi?.desc} />
-        <PriceTag label="SUPER C" price={item.superc?.promo || item.superc?.regular} qty={item.superc?.qty} unit={item.superc?.unit || "100g"} isPromo={!!item.superc?.promo} isBest={best === "Super C"} desc={item.superc?.desc} />
+        <PriceTag label="COSTCO" price={item.costco?.promo || item.costco?.regular} qty={item.costco?.qty} unit={item.costco?.unit || "100g"} isPromo={!!item.costco?.promo} isBest={best === "Costco"} desc={item.costco?.desc} perUnit={pu} />
+        <PriceTag label="MAXI" price={item.maxi?.promo || item.maxi?.regular} qty={item.maxi?.qty} unit={item.maxi?.unit || "100g"} isPromo={!!item.maxi?.promo} isBest={best === "Maxi"} desc={item.maxi?.desc} perUnit={pu} />
+        <PriceTag label="SUPER C" price={item.superc?.promo || item.superc?.regular} qty={item.superc?.qty} unit={item.superc?.unit || "100g"} isPromo={!!item.superc?.promo} isBest={best === "Super C"} desc={item.superc?.desc} perUnit={pu} />
       </div>
     </div>
   );
