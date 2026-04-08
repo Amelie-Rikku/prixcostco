@@ -460,6 +460,10 @@ export default function App() {
 
   const handleDelete = (id) => setProducts(prev => prev.filter(p => p.id !== id));
 
+  const handlePerUnitChange = (id, perUnit) => {
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, perUnit } : p));
+  };
+
   const handleFlippConfirm = async (updatedProducts, newMemory) => {
     setProducts(updatedProducts);
     setMatchMemory(newMemory);
