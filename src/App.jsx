@@ -526,6 +526,28 @@ export default function App() {
 
         <div style={{ display: "flex", gap: 8 }}>
           <button
+            onClick={() => {
+              const backup = {
+                version: "1.0",
+                exportedAt: new Date().toISOString(),
+                productCount: products.length,
+                memoryCount: Object.keys(matchMemory).length,
+                products,
+                memory: matchMemory,
+              };
+              const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `prixQC-backup-${new Date().toISOString().slice(0,10)}.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            style={{ flex: 1, background: "rgba(134,239,172,0.08)", border: "1px solid rgba(134,239,172,0.25)", borderRadius: "8px", padding: "8px", color: "#86efac", cursor: "pointer", fontSize: "12px", fontFamily: "monospace" }}
+          >
+            💾 Backup complet
+          </button>
+          <button
             onClick={() => setShowExport(v => !v)}
             style={{ flex: 1, background: showExport ? "rgba(99,102,241,0.2)" : "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", padding: "8px", color: showExport ? "#a5b4fc" : "#94a3b8", cursor: "pointer", fontSize: "12px", fontFamily: "monospace" }}
           >
