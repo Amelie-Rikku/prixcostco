@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import FlippPanel from "./FlippPanel";
+import Auth from "./Auth";
+import {
+  loadProducts, saveProducts,
+  loadMemory, saveMemory,
+  signOut, onAuthChange,
+} from "./db";
 
 const CATEGORIES = ["Tous", "Viandes", "Produits laitiers", "Épicerie sèche", "Fruits & légumes", "Surgelés", "Hygiène/Maison", "Autre"];
 const UNITS = ["100g", "100ml", "unité", "kg", "litre", "portion", "g", "ml", "lb"];
@@ -13,64 +19,6 @@ const SAMPLE_DATA = [
   { id: 4, name: "Saumon Atlantique", category: "Viandes", costco: { regular: 9.99, promo: null, qty: 100, unit: "100g" }, maxi: { regular: 3.99, promo: null, qty: 100, unit: "100g" }, superc: { regular: 3.79, promo: 2.99, qty: 100, unit: "100g" } },
 ];
 
-// ── Gist API helpers ──────────────────────────────────────────────────────────
-
-async function gistLoad(token, gistId) {
-  const res = await fetch(`https://api.github.com/gists/${gistId}`, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" },
-  });
-  if (!res.ok) throw new Error(`Gist load failed: ${res.status}`);
-  const data = await res.json();
-  const content = data.files?.[GIST_FILENAME]?.content;
-  if (!content) throw new Error("Fichier prixQC.json introuvable dans le Gist");
-  return JSON.parse(content);
-}
-
-async function gistCreate(token, products) {
-  const res = await fetch("https://api.github.com/gists", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/vnd.github+json" },
-    body: JSON.stringify({
-      description: "prixQC — données comparateur de prix",
-      public: false,
-      files: { [GIST_FILENAME]: { content: JSON.stringify(products, null, 2) } },
-    }),
-  });
-  if (!res.ok) throw new Error(`Gist create failed: ${res.status}`);
-  const data = await res.json();
-  return data.id;
-}
-
-async function gistSave(token, gistId, products) {
-  const res = await fetch(`https://api.github.com/gists/${gistId}`, {
-    method: "PATCH",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/vnd.github+json" },
-    body: JSON.stringify({
-      files: { [GIST_FILENAME]: { content: JSON.stringify(products, null, 2) } },
-    }),
-  });
-  if (!res.ok) throw new Error(`Gist save failed: ${res.status}`);
-}
-
-async function memoryLoad(token, gistId) {
-  const res = await fetch(`https://api.github.com/gists/${gistId}`, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" },
-  });
-  if (!res.ok) return {};
-  const data = await res.json();
-  const content = data.files?.[MEMORY_FILENAME]?.content;
-  return content ? JSON.parse(content) : {};
-}
-
-async function memorySave(token, gistId, memory) {
-  await fetch(`https://api.github.com/gists/${gistId}`, {
-    method: "PATCH",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/vnd.github+json" },
-    body: JSON.stringify({
-      files: { [MEMORY_FILENAME]: { content: JSON.stringify(memory, null, 2) } },
-    }),
-  });
-}
 
 // ── Utility ───────────────────────────────────────────────────────────────────
 
@@ -256,84 +204,17 @@ const emptyForm = {
   superc: { price: "", promo: "", qty: "", unit: "100g", desc: "" },
 };
 
-// ── Settings panel ────────────────────────────────────────────────────────────
+// ── DbBadge ───────────────────────────────────────────────────────────────────
 
-function SettingsPanel({ onClose, onSaved }) {
-  const [token, setToken] = useState(() => localStorage.getItem("gistToken") || "");
-  const [gistId, setGistId] = useState(() => localStorage.getItem("gistId") || "");
-
-  const handleSave = () => {
-    localStorage.setItem("gistToken", token.trim());
-    localStorage.setItem("gistId", gistId.trim());
-    onSaved(token.trim(), gistId.trim());
-    onClose();
-  };
-
-  const handleClear = () => {
-    localStorage.removeItem("gistToken");
-    localStorage.removeItem("gistId");
-    setToken("");
-    setGistId("");
-    onSaved("", "");
-  };
-
-  return (
-    <div style={{ padding: "16px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(99,102,241,0.04)" }}>
-      <div style={{ fontSize: "13px", fontWeight: 700, marginBottom: 14, color: "#a5b4fc", fontFamily: "monospace", display: "flex", justifyContent: "space-between" }}>
-        <span>⚙️ SYNC GITHUB GIST</span>
-        <button onClick={onClose} style={{ background: "none", border: "none", color: "#6b7280", cursor: "pointer", fontSize: "14px" }}>✕</button>
-      </div>
-
-      <div style={{ fontSize: "11px", color: "#6b7280", fontFamily: "monospace", marginBottom: 12, lineHeight: 1.6 }}>
-        Crée un token sur <span style={{ color: "#a5b4fc" }}>github.com → Settings → Developer settings → Personal access tokens</span> avec la permission <code style={{ color: "#86efac" }}>gist</code>.
-      </div>
-
-      <div style={{ marginBottom: 10 }}>
-        <div style={{ fontSize: "10px", color: "#9ca3af", fontFamily: "monospace", marginBottom: 4, letterSpacing: "0.08em" }}>GITHUB TOKEN (gist scope)</div>
-        <input
-          type="password"
-          placeholder="ghp_xxxxxxxxxxxx"
-          value={token}
-          onChange={e => setToken(e.target.value)}
-          style={{ ...inputStyle, width: "100%", fontSize: "12px" }}
-        />
-      </div>
-
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: "10px", color: "#9ca3af", fontFamily: "monospace", marginBottom: 4, letterSpacing: "0.08em" }}>GIST ID (laisser vide pour en créer un nouveau)</div>
-        <input
-          type="text"
-          placeholder="abc123def456..."
-          value={gistId}
-          onChange={e => setGistId(e.target.value)}
-          style={{ ...inputStyle, width: "100%", fontSize: "12px" }}
-        />
-      </div>
-
-      <div style={{ display: "flex", gap: 8 }}>
-        <button onClick={handleSave} style={{ flex: 1, background: "rgba(99,102,241,0.25)", border: "1px solid rgba(99,102,241,0.5)", borderRadius: "8px", padding: "9px", color: "#a5b4fc", cursor: "pointer", fontSize: "12px", fontFamily: "monospace", fontWeight: 700 }}>
-          ✓ Enregistrer
-        </button>
-        <button onClick={handleClear} style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: "8px", padding: "9px 14px", color: "#f87171", cursor: "pointer", fontSize: "12px", fontFamily: "monospace" }}>
-          Effacer
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ── SyncStatus badge ──────────────────────────────────────────────────────────
-
-const SYNC_STYLES = {
+const DB_STYLES = {
   idle:    { color: "#4b5563", label: "" },
-  syncing: { color: "#fbbf24", label: "⟳ sync..." },
-  saved:   { color: "#86efac", label: "✓ Gist" },
+  saving:  { color: "#fbbf24", label: "⟳ sauvegarde..." },
+  saved:   { color: "#86efac", label: "✓ sauvegardé" },
   error:   { color: "#f87171", label: "✗ erreur" },
-  notoken: { color: "#4b5563", label: "☁ non connecté" },
 };
 
-function SyncBadge({ status }) {
-  const s = SYNC_STYLES[status] || SYNC_STYLES.idle;
+function DbBadge({ status }) {
+  const s = DB_STYLES[status] || DB_STYLES.idle;
   if (!s.label) return null;
   return (
     <span style={{ fontSize: "10px", fontFamily: "monospace", color: s.color, transition: "color 0.3s" }}>{s.label}</span>
@@ -343,87 +224,63 @@ function SyncBadge({ status }) {
 // ── Main App ──────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [products, setProducts] = useState(() => {
-    try { const s = localStorage.getItem("prixQC"); return s ? JSON.parse(s) : SAMPLE_DATA; }
-    catch { return SAMPLE_DATA; }
-  });
-
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [products, setProducts] = useState(SAMPLE_DATA);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Tous");
   const [showForm, setShowForm] = useState(false);
   const [showExport, setShowExport] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [showFlipp, setShowFlipp] = useState(false);
-  const [matchMemory, setMatchMemory] = useState(() => {
-    try { const s = localStorage.getItem("prixQC-memory"); return s ? JSON.parse(s) : {}; }
-    catch { return {}; }
-  });
+  const [matchMemory, setMatchMemory] = useState({});
   const [form, setForm] = useState(emptyForm);
   const [editId, setEditId] = useState(null);
-
-  const [gistToken, setGistToken] = useState(() => localStorage.getItem("gistToken") || "");
-  const [gistId, setGistId] = useState(() => localStorage.getItem("gistId") || "");
-  const [syncStatus, setSyncStatus] = useState(gistToken ? "notoken" : "notoken");
+  const [dbStatus, setDbStatus] = useState("idle");
 
   const saveTimer = useRef(null);
   const isFirstLoad = useRef(true);
 
-  // Load from Gist on mount if credentials exist
+  // Écoute les changements d'authentification
   useEffect(() => {
-    if (!gistToken || !gistId) { setSyncStatus("notoken"); return; }
-    setSyncStatus("syncing");
-    gistLoad(gistToken, gistId)
-      .then(data => { setProducts(data); setSyncStatus("saved"); })
-      .catch(() => setSyncStatus("error"));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    const unsubscribe = onAuthChange(async (u) => {
+      setUser(u);
+      if (u) {
+        try {
+          const [prods, mem] = await Promise.all([
+            loadProducts(u.id),
+            loadMemory(u.id),
+          ]);
+          setProducts(prods.length ? prods : SAMPLE_DATA);
+          setMatchMemory(mem);
+        } catch (e) {
+          console.error("Erreur chargement données:", e);
+        }
+      }
+      setAuthLoading(false);
+    });
+    return unsubscribe;
   }, []);
 
-  // Persist to localStorage on every change
-  useEffect(() => {
-    try { localStorage.setItem("prixQC", JSON.stringify(products)); } catch {}
-  }, [products]);
-
-  // Auto-save to Gist (debounced 1.5s) whenever products change
+  // Sauvegarde automatique dans Supabase (debounced 1.5s)
   useEffect(() => {
     if (isFirstLoad.current) { isFirstLoad.current = false; return; }
-    if (!gistToken) { setSyncStatus("notoken"); return; }
+    if (!user) return;
 
     clearTimeout(saveTimer.current);
-    setSyncStatus("syncing");
+    setDbStatus("saving");
 
     saveTimer.current = setTimeout(async () => {
       try {
-        if (!gistId) {
-          const newId = await gistCreate(gistToken, products);
-          setGistId(newId);
-          localStorage.setItem("gistId", newId);
-        } else {
-          await gistSave(gistToken, gistId, products);
-        }
-        setSyncStatus("saved");
+        await saveProducts(user.id, products);
+        setDbStatus("saved");
       } catch {
-        setSyncStatus("error");
+        setDbStatus("error");
       }
     }, 1500);
 
     return () => clearTimeout(saveTimer.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products]);
-
-  const handleSettingsSaved = (newToken, newGistId) => {
-    setGistToken(newToken);
-    setGistId(newGistId);
-    if (!newToken) { setSyncStatus("notoken"); return; }
-    // If gistId given, pull data from it
-    if (newGistId) {
-      setSyncStatus("syncing");
-      gistLoad(newToken, newGistId)
-        .then(data => { setProducts(data); setSyncStatus("saved"); })
-        .catch(() => setSyncStatus("error"));
-    } else {
-      setSyncStatus("notoken");
-    }
-  };
 
   const filtered = products.filter(p =>
     (category === "Tous" || p.category === category) &&
@@ -468,12 +325,18 @@ export default function App() {
     setProducts(updatedProducts);
     setMatchMemory(newMemory);
     setShowFlipp(false);
-    // Persist memory
-    try { localStorage.setItem("prixQC-memory", JSON.stringify(newMemory)); } catch {}
-    if (gistToken && gistId) {
-      try { await memorySave(gistToken, gistId, newMemory); } catch {}
+    if (user) {
+      try { await saveMemory(user.id, newMemory); } catch (e) { console.error("Erreur sauvegarde mémoire:", e); }
     }
   };
+
+  if (authLoading) return (
+    <div style={{ minHeight: "100vh", background: "#080c14", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <span style={{ color: "#4b5563", fontFamily: "monospace", fontSize: "12px" }}>Chargement...</span>
+    </div>
+  );
+
+  if (!user) return <Auth />;
 
   return (
     <div style={{ minHeight: "100vh", background: "#080c14", color: "#f1f5f9", fontFamily: "'Syne', sans-serif" }}>
@@ -497,19 +360,19 @@ export default function App() {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 1 }}>
               <div style={{ fontSize: "11px", color: "#4b5563", fontFamily: "monospace" }}>Costco · Maxi · Super C</div>
-              <SyncBadge status={syncStatus} />
+              <DbBadge status={dbStatus} />
             </div>
           </div>
           <div style={{ display: "flex", gap: 6 }}>
             <button
-              onClick={() => { setShowSettings(v => !v); setShowForm(false); setShowExport(false); setShowFlipp(false); }}
-              title="Paramètres Gist"
-              style={{ background: showSettings ? "rgba(99,102,241,0.2)" : (gistToken ? "rgba(134,239,172,0.1)" : "rgba(255,255,255,0.05)"), border: `1px solid ${showSettings ? "rgba(99,102,241,0.4)" : (gistToken ? "rgba(134,239,172,0.3)" : "rgba(255,255,255,0.08)")}`, borderRadius: "10px", padding: "8px 11px", color: gistToken ? "#86efac" : "#6b7280", cursor: "pointer", fontSize: "14px" }}
+              onClick={signOut}
+              title="Se déconnecter"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", padding: "8px 11px", color: "#6b7280", cursor: "pointer", fontSize: "14px" }}
             >
-              ☁
+              ⎋
             </button>
             <button
-              onClick={() => { setShowFlipp(v => !v); setShowForm(false); setShowExport(false); setShowSettings(false); }}
+              onClick={() => { setShowFlipp(v => !v); setShowForm(false); setShowExport(false); }}
               title="Synchroniser les promos Flipp"
               style={{ background: showFlipp ? "rgba(251,191,36,0.2)" : "rgba(255,255,255,0.05)", border: `1px solid ${showFlipp ? "rgba(251,191,36,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: "10px", padding: "8px 11px", color: showFlipp ? "#fbbf24" : "#6b7280", cursor: "pointer", fontSize: "14px" }}
             >
@@ -559,20 +422,25 @@ export default function App() {
               const file = e.target.files[0];
               if (!file) return;
               const reader = new FileReader();
-              reader.onload = ev => {
+              reader.onload = async ev => {
                 try {
                   const parsed = JSON.parse(ev.target.result);
-                  // Compatibilité ancien format : costco.price → costco.regular
-                  const normalized = parsed.map(p => ({
+                  // Détecte format backup {version, products, memory} ou tableau simple
+                  const rawProducts = Array.isArray(parsed) ? parsed : (parsed.products ?? []);
+                  const rawMemory   = Array.isArray(parsed) ? null  : (parsed.memory ?? null);
+                  const normalize = (p) => ({
                     ...p,
-                    costco: p.costco ? {
-                      regular: p.costco.regular ?? p.costco.price ?? null,
-                      promo: p.costco.promo ?? null,
-                      qty: p.costco.qty ?? null,
-                      unit: p.costco.unit ?? "100g",
-                    } : { regular: null, promo: null, qty: null, unit: "100g" },
-                  }));
+                    costco: p.costco ? { regular: p.costco.regular ?? p.costco.price ?? null, promo: p.costco.promo ?? null, qty: p.costco.qty ?? null, unit: p.costco.unit ?? "100g", desc: p.costco.desc ?? null } : { regular: null, promo: null, qty: null, unit: "100g", desc: null },
+                    maxi:   p.maxi   ? { regular: p.maxi.regular   ?? p.maxi.price   ?? null, promo: p.maxi.promo   ?? null, qty: p.maxi.qty   ?? null, unit: p.maxi.unit   ?? "100g", desc: p.maxi.desc   ?? null } : { regular: null, promo: null, qty: null, unit: "100g", desc: null },
+                    superc: p.superc ? { regular: p.superc.regular ?? p.superc.price ?? null, promo: p.superc.promo ?? null, qty: p.superc.qty ?? null, unit: p.superc.unit ?? "100g", desc: p.superc.desc ?? null } : { regular: null, promo: null, qty: null, unit: "100g", desc: null },
+                  });
+                  const normalized = rawProducts.map(normalize);
                   setProducts(normalized);
+                  if (rawMemory) {
+                    setMatchMemory(rawMemory);
+                    if (user) await saveMemory(user.id, rawMemory).catch(console.error);
+                  }
+                  // Les produits seront auto-sauvegardés via le useEffect
                 } catch { alert("Fichier JSON invalide"); }
               };
               reader.readAsText(file);
@@ -581,14 +449,6 @@ export default function App() {
           </label>
         </div>
       </div>
-
-      {/* Settings Panel */}
-      {showSettings && (
-        <SettingsPanel
-          onClose={() => setShowSettings(false)}
-          onSaved={handleSettingsSaved}
-        />
-      )}
 
       {/* Flipp Panel */}
       {showFlipp && (
