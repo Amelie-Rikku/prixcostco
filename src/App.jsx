@@ -446,6 +446,7 @@ export default function App() {
                       setDbStatus("saved");
                     } catch (e) {
                       console.error("Erreur import Supabase:", e);
+                      alert(`Erreur Supabase : ${e?.message ?? JSON.stringify(e)}`);
                       setDbStatus("error");
                     }
                   }

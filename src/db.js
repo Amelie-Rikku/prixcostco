@@ -52,10 +52,14 @@ export async function loadProducts(userId) {
 }
 
 export async function saveProducts(userId, products) {
-  if (!products.length) {
-    await supabase.from("products").delete().eq("user_id", userId);
-    return;
-  }
+  // Stratégie : supprimer tout puis réinsérer — simple et fiable
+  const { error: deleteError } = await supabase
+    .from("products")
+    .delete()
+    .eq("user_id", userId);
+  if (deleteError) throw deleteError;
+
+  if (!products.length) return;
 
   const rows = products.map((p) => ({
     id: p.id,
@@ -66,22 +70,12 @@ export async function saveProducts(userId, products) {
     costco: p.costco ?? null,
     maxi: p.maxi ?? null,
     superc: p.superc ?? null,
-    updated_at: new Date().toISOString(),
   }));
 
-  const { error: upsertError } = await supabase
+  const { error: insertError } = await supabase
     .from("products")
-    .upsert(rows, { onConflict: "id" });
-  if (upsertError) throw upsertError;
-
-  // Supprimer les produits qui ne sont plus dans la liste
-  const ids = products.map((p) => p.id);
-  const { error: deleteError } = await supabase
-    .from("products")
-    .delete()
-    .eq("user_id", userId)
-    .not("id", "in", `(${ids.join(",")})`);
-  if (deleteError) throw deleteError;
+    .insert(rows);
+  if (insertError) throw insertError;
 }
 
 // ── Mémoire Flipp ─────────────────────────────────────────────────────────────
