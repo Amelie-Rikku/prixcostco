@@ -436,11 +436,19 @@ export default function App() {
                   });
                   const normalized = rawProducts.map(normalize);
                   setProducts(normalized);
-                  if (rawMemory) {
-                    setMatchMemory(rawMemory);
-                    if (user) await saveMemory(user.id, rawMemory).catch(console.error);
+                  if (rawMemory) setMatchMemory(rawMemory);
+                  // Sauvegarde directe dans Supabase (plus fiable que l'effet automatique)
+                  if (user) {
+                    setDbStatus("saving");
+                    try {
+                      await saveProducts(user.id, normalized);
+                      if (rawMemory) await saveMemory(user.id, rawMemory);
+                      setDbStatus("saved");
+                    } catch (e) {
+                      console.error("Erreur import Supabase:", e);
+                      setDbStatus("error");
+                    }
                   }
-                  // Les produits seront auto-sauvegardés via le useEffect
                 } catch { alert("Fichier JSON invalide"); }
               };
               reader.readAsText(file);
