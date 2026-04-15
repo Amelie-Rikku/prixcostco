@@ -15,20 +15,16 @@ export async function signOut() {
   if (error) throw error;
 }
 
-export function onAuthChange(callback) {
-  const {
-    data: { subscription },
-  } = supabase.auth.onAuthStateChange((_event, session) => {
-    callback(session?.user ?? null);
-  });
-  return () => subscription.unsubscribe();
+export async function getSession() {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session;
 }
 
-export async function getUser() {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
+export function onSignOut(callback) {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    if (event === "SIGNED_OUT") callback();
+  });
+  return () => subscription.unsubscribe();
 }
 
 // ── Products ──────────────────────────────────────────────────────────────────

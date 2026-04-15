@@ -4,7 +4,7 @@ import Auth from "./Auth";
 import {
   loadProducts, saveProducts,
   loadMemory, saveMemory,
-  signOut, onAuthChange,
+  signOut, getSession, onSignOut,
 } from "./db";
 
 const CATEGORIES = ["Tous", "Viandes", "Produits laitiers", "Épicerie sèche", "Fruits & légumes", "Surgelés", "Hygiène/Maison", "Autre"];
@@ -240,9 +240,13 @@ export default function App() {
   const saveTimer = useRef(null);
   const isFirstLoad = useRef(true);
 
-  // Écoute les changements d'authentification
+  // Initialise la session et écoute la déconnexion
   useEffect(() => {
-    const unsubscribe = onAuthChange(async (u) => {
+    let mounted = true;
+    async function initAuth() {
+      const session = await getSession();
+      if (!mounted) return;
+      const u = session?.user ?? null;
       setUser(u);
       if (u) {
         try {
@@ -250,15 +254,23 @@ export default function App() {
             loadProducts(u.id),
             loadMemory(u.id),
           ]);
+          if (!mounted) return;
           setProducts(prods.length ? prods : SAMPLE_DATA);
           setMatchMemory(mem);
         } catch (e) {
           console.error("Erreur chargement données:", e);
         }
       }
-      setAuthLoading(false);
+      if (mounted) setAuthLoading(false);
+    }
+    initAuth();
+    const unsubscribe = onSignOut(() => {
+      if (!mounted) return;
+      setUser(null);
+      setProducts(SAMPLE_DATA);
+      setMatchMemory({});
     });
-    return unsubscribe;
+    return () => { mounted = false; unsubscribe(); };
   }, []);
 
   // Sauvegarde automatique dans Supabase (debounced 1.5s)
@@ -379,7 +391,7 @@ export default function App() {
               🏷️
             </button>
             <button
-              onClick={() => { setShowForm(!showForm); setEditId(null); setForm(emptyForm); setShowSettings(false); }}
+              onClick={() => { setShowForm(!showForm); setEditId(null); setForm(emptyForm); setShowFlipp(false); setShowExport(false); }}
               style={{ background: showForm ? "rgba(239,68,68,0.15)" : "rgba(99,102,241,0.2)", border: `1px solid ${showForm ? "rgba(239,68,68,0.3)" : "rgba(99,102,241,0.4)"}`, borderRadius: "10px", padding: "10px 16px", color: showForm ? "#f87171" : "#a5b4fc", cursor: "pointer", fontSize: "13px", fontWeight: 700, fontFamily: "'Syne', sans-serif" }}
             >
               {showForm ? "✕ Annuler" : "+ Ajouter"}
