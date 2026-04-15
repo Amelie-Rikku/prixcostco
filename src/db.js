@@ -5,7 +5,7 @@ import { supabase } from "./supabaseClient";
 export async function signInWithGoogle() {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: window.location.origin },
+    options: { redirectTo: window.location.href.split("#")[0] },
   });
   if (error) throw error;
 }
