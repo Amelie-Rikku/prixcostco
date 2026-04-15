@@ -62,7 +62,7 @@ export async function saveProducts(userId, products) {
   if (!products.length) return;
 
   const rows = products.map((p) => ({
-    id: p.id,
+    id: Math.round(p.id),
     user_id: userId,
     name: p.name,
     category: p.category || "Épicerie sèche",

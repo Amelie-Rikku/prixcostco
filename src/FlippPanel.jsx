@@ -435,7 +435,7 @@ export default function FlippPanel({ products, memory, onConfirm, onClose }) {
           desc: c.flippItem.name ?? null,
         };
         return {
-          id: Date.now() + Math.random(),
+          id: Date.now(),
           name: c.name.trim(),
           category: c.category,
           costco: c.storeKey === "costco" ? storeData : emptyStore(),
