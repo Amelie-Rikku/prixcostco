@@ -434,15 +434,39 @@ export default function App() {
                     maxi:   p.maxi   ? { regular: p.maxi.regular   ?? p.maxi.price   ?? null, promo: p.maxi.promo   ?? null, qty: p.maxi.qty   ?? null, unit: p.maxi.unit   ?? "100g", desc: p.maxi.desc   ?? null } : { regular: null, promo: null, qty: null, unit: "100g", desc: null },
                     superc: p.superc ? { regular: p.superc.regular ?? p.superc.price ?? null, promo: p.superc.promo ?? null, qty: p.superc.qty ?? null, unit: p.superc.unit ?? "100g", desc: p.superc.desc ?? null } : { regular: null, promo: null, qty: null, unit: "100g", desc: null },
                   });
-                  const normalized = rawProducts.map(normalize);
+                  // Convertir tous les IDs en entiers uniques (les anciens IDs étaient des floats)
+                  const usedIds = new Set();
+                  const idMap = new Map();
+                  const normalized = rawProducts.map(p => {
+                    let intId = Math.trunc(p.id);
+                    while (usedIds.has(intId)) intId++;
+                    usedIds.add(intId);
+                    idMap.set(p.id, intId);
+                    return { ...normalize(p), id: intId };
+                  });
+
+                  // Mettre à jour les clés mémoire pour utiliser les nouveaux IDs entiers
+                  let resolvedMemory = null;
+                  if (rawMemory) {
+                    resolvedMemory = {};
+                    for (const [key, val] of Object.entries(rawMemory)) {
+                      const idx = key.indexOf("_");
+                      const oldId = Number(key.slice(0, idx));
+                      const storeKey = key.slice(idx + 1);
+                      const newId = idMap.get(oldId) ?? Math.trunc(oldId);
+                      resolvedMemory[`${newId}_${storeKey}`] = val;
+                    }
+                  }
+
                   setProducts(normalized);
-                  if (rawMemory) setMatchMemory(rawMemory);
-                  // Sauvegarde directe dans Supabase (plus fiable que l'effet automatique)
+                  if (resolvedMemory) setMatchMemory(resolvedMemory);
+
+                  // Sauvegarde directe dans Supabase
                   if (user) {
                     setDbStatus("saving");
                     try {
                       await saveProducts(user.id, normalized);
-                      if (rawMemory) await saveMemory(user.id, rawMemory);
+                      if (resolvedMemory) await saveMemory(user.id, resolvedMemory);
                       setDbStatus("saved");
                     } catch (e) {
                       console.error("Erreur import Supabase:", e);
