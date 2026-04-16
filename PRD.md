@@ -69,10 +69,38 @@ Un seul utilisateur (usage personnel). L'interface doit être fluide sur télép
 
 ### 4.3 Ajout de produits via mobile
 
-- **Scan de code-barres** : via la caméra du téléphone, identifie le produit via Open Food Facts pour pré-remplir le nom et le format
-- **Photo d'étiquette (OCR)** : via Google Cloud Vision, capture le nom du produit, le prix et le poids/format depuis l'étiquette en rayon
-- **Produit inexistant** : formulaire d'ajout pré-rempli avec les données captées
-- **Produit déjà existant** : affichage de la fiche existante avec proposition de modification du prix et du format
+#### Flux 1 — Scan de code-barres → Open Food Facts
+
+1. L'utilisateur tape l'icône 📷 dans la barre de recherche
+2. Le sélecteur de magasin apparaît (COSTCO / MAXI / SUPER C)
+3. La caméra s'ouvre via `<input capture="environment">` — pas d'installation requise
+4. La `BarcodeDetector` Web API (native Chrome Android) lit le code-barres
+5. Requête vers Open Food Facts (`/api/v2/product/{barcode}.json`) — API publique, pas de clé requise
+6. Résultat : nom du produit (`product_name_fr`) + format (`quantity`, ex: "500 g")
+7. Le formulaire d'ajout s'ouvre pré-rempli avec le nom et le format ; l'utilisateur saisit le prix
+
+**Fallback iOS Safari** : `BarcodeDetector` non disponible sur Safari → saisie manuelle du code-barres, le lookup Open Food Facts s'effectue quand même
+
+#### Flux 2 — Photo d'étiquette (OCR) → Google Cloud Vision
+
+1. L'utilisateur tape l'icône 📸 dans la barre de recherche
+2. Le sélecteur de magasin apparaît (COSTCO / MAXI / SUPER C)
+3. La caméra s'ouvre pour photographier l'étiquette en rayon
+4. L'image est redimensionnée côté client à 1024px max (JPEG 85%) pour rester dans le tier gratuit (~1000 req/mois)
+5. L'image (base64) est envoyée à une **Supabase Edge Function** — la clé API Cloud Vision reste côté serveur, jamais exposée dans le navigateur
+6. Cloud Vision (`TEXT_DETECTION`) retourne le texte brut ; le parsing extrait :
+   - **Prix régulier** : `Rég. $8.99` → pattern `/rég\.?\s*\$?(\d+[.,]\d{2})/i`
+   - **Prix spécial** : `Prix spécial $6.99` → pattern `/(?:spécial|promo)\s*\$?(\d+[.,]\d{2})/i`
+   - **Format** : `500 g`, `1 L`, `4x100 ml` → même logique que le parsing Flipp
+   - **Nom** : ligne la plus longue en majuscules sans prix ni unité
+7. Un aperçu éditable s'affiche avant confirmation (correction des erreurs OCR)
+8. Le formulaire d'ajout s'ouvre pré-rempli
+
+#### Produit déjà existant (commun aux deux flux)
+
+- Après capture, recherche floue dans le catalogue existant (similarité Jaccard)
+- Score > 70 % → proposition de mettre à jour le prix du magasin scanné plutôt que de créer un doublon
+- Score ≤ 70 % → création d'un nouveau produit avec le formulaire pré-rempli
 
 ### 4.4 Comparaison de liste de courses
 
@@ -124,9 +152,10 @@ Un seul utilisateur (usage personnel). L'interface doit être fluide sur télép
 |---|---|---|
 | Frontend | React + Vite (PWA) | Léger, mobile-friendly, VS Code compatible |
 | Backend / DB | Supabase | Auth Google, PostgreSQL, API auto-générée, gratuit |
-| Hébergement + API proxy | Vercel | Déploiement automatique, Vercel Functions pour proxy Flipp, gratuit |
-| Données circulaires | Flipp (API non-officielle) | Agrège Costco, Maxi, Super C |
-| Lookup produit | Open Food Facts API | Gratuit, open-source, données canadiennes |
+| Hébergement | GitHub Pages | Déploiement via `npm run deploy`, gratuit |
+| Proxy OCR | Supabase Edge Function | Garde la clé Cloud Vision côté serveur, infrastructure déjà en place |
+| Données circulaires | Flipp (API non-officielle) | Agrège Costco, Maxi, Super C — appelée directement depuis le navigateur |
+| Scan code-barres | BarcodeDetector Web API + Open Food Facts | Natif Chrome Android, pas de dépendance, API publique sans clé |
 | OCR étiquette | Google Cloud Vision | Précision optimale, ~1000 req/mois gratuitement (amplement suffisant) |
 
 ### Modèle de données (simplifié)
