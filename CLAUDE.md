@@ -53,9 +53,12 @@ Le fichier `.env.local` est déjà présent sur ce serveur. Il ne faut pas le co
 ## Base de données Supabase
 
 ### Tables existantes (déjà créées ✓)
-- **`products`** — Produits avec prix par magasin (JSONB: costco, maxi, superc)
+- **`stores`** — Référentiel statique : costco, maxi, superc
+- **`products`** — Catalogue produits (id, name, category, per_unit, user_id)
+- **`store_prices`** — Prix par produit/magasin : price, regular_price, is_promo, promo_end_date, format_qty, format_unit, description, source. Clé unique : (product_id, store_id)
 - **`flipp_memory`** — Mémorisation des correspondances produit/Flipp
-- **`shopping_lists`** — Liste d'épicerie par utilisateur
+- **`shopping_lists`** — Listes d'épicerie (id bigserial, user_id, name, is_current, created_at)
+- **`shopping_list_items`** — Articles d'une liste (list_id, product_id, qty, checked, price_snapshot_*)
 
 ---
 
@@ -117,7 +120,7 @@ Décris la structure de la table shopping_lists
 ### Phase 1.5 — Liste d'épicerie
 - [x] `ShoppingList.jsx` — recherche depuis le catalogue, quantités, cases à cocher
 - [x] Totaux par magasin avec badge MEILLEUR
-- [x] Sauvegarde dans Supabase (`shopping_lists` table ✓)
+- [x] Sauvegarde dans Supabase (`shopping_lists` + `shopping_list_items`)
 - [x] Bouton 🛒 dans le header avec compteur d'articles actifs
 
 ---
