@@ -29,49 +29,113 @@ export function onSignOut(callback) {
 
 // ── Products ──────────────────────────────────────────────────────────────────
 
+// Convertit une ligne store_prices en l'objet { regular, promo, qty, unit, desc }
+// attendu par les composants UI (App.jsx, FlippPanel.jsx, ShoppingList.jsx).
+function storeRowToObj(sp) {
+  if (!sp) return null;
+  return {
+    regular: sp.regular_price,
+    promo: sp.is_promo ? sp.promo_price : null,
+    qty: sp.format_qty,
+    unit: sp.format_unit,
+    desc: sp.description,
+  };
+}
+
 export async function loadProducts(userId) {
   const { data, error } = await supabase
     .from("products")
-    .select("id, name, category, per_unit, costco, maxi, superc")
+    .select(`
+      id, name, category, per_unit,
+      store_prices (store_id, regular_price, is_promo, promo_price, format_qty, format_unit, description)
+    `)
     .eq("user_id", userId)
     .order("id", { ascending: true });
+
   if (error) throw error;
+
   return data.map((row) => ({
     id: row.id,
     name: row.name,
     category: row.category,
     perUnit: row.per_unit,
-    costco: row.costco,
-    maxi: row.maxi,
-    superc: row.superc,
+    costco: storeRowToObj(row.store_prices?.find((p) => p.store_id === "costco")),
+    maxi:   storeRowToObj(row.store_prices?.find((p) => p.store_id === "maxi")),
+    superc: storeRowToObj(row.store_prices?.find((p) => p.store_id === "superc")),
   }));
 }
 
 export async function saveProducts(userId, products) {
-  // Stratégie : supprimer tout puis réinsérer — simple et fiable
-  const { error: deleteError } = await supabase
-    .from("products")
-    .delete()
-    .eq("user_id", userId);
-  if (deleteError) throw deleteError;
+  const currentIds = products.map((p) => Math.round(p.id));
 
-  if (!products.length) return;
+  // Supprimer les produits qui ne sont plus dans la liste (cascade → store_prices, flipp_memory)
+  if (currentIds.length > 0) {
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("user_id", userId)
+      .not("id", "in", `(${currentIds.join(",")})`);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("user_id", userId);
+    if (error) throw error;
+    return;
+  }
 
-  const rows = products.map((p) => ({
+  // Upsert des produits (crée les nouveaux, met à jour les existants)
+  const productRows = products.map((p) => ({
     id: Math.round(p.id),
     user_id: userId,
     name: p.name,
     category: p.category || "Épicerie sèche",
     per_unit: p.perUnit || "g",
-    costco: p.costco ?? null,
-    maxi: p.maxi ?? null,
-    superc: p.superc ?? null,
   }));
 
-  const { error: insertError } = await supabase
+  const { error: upsertError } = await supabase
     .from("products")
-    .insert(rows);
-  if (insertError) throw insertError;
+    .upsert(productRows, { onConflict: "id" });
+  if (upsertError) throw upsertError;
+
+  // Construire les lignes store_prices
+  const STORE_KEYS = ["costco", "maxi", "superc"];
+  const priceRows = [];
+
+  for (const p of products) {
+    for (const storeId of STORE_KEYS) {
+      const store = p[storeId];
+      if (!store || (store.regular == null && store.promo == null)) continue;
+      priceRows.push({
+        product_id: Math.round(p.id),
+        store_id: storeId,
+        user_id: userId,
+        regular_price: store.regular ?? null,
+        is_promo: store.promo != null,
+        promo_price: store.promo ?? null,
+        format_qty: store.qty ?? null,
+        format_unit: store.unit ?? null,
+        description: store.desc ?? null,
+        source: "manual",
+        updated_at: new Date().toISOString(),
+      });
+    }
+  }
+
+  // Remplacer tous les prix des produits concernés (gère la suppression d'un prix)
+  const { error: deleteError } = await supabase
+    .from("store_prices")
+    .delete()
+    .in("product_id", currentIds);
+  if (deleteError) throw deleteError;
+
+  if (priceRows.length > 0) {
+    const { error: insertError } = await supabase
+      .from("store_prices")
+      .insert(priceRows);
+    if (insertError) throw insertError;
+  }
 }
 
 // ── Mémoire Flipp ─────────────────────────────────────────────────────────────
@@ -134,7 +198,7 @@ export async function saveShoppingList(userId, items) {
   if (error) throw error;
 }
 
-// ── Import de sauvegarde (migration depuis Gist) ──────────────────────────────
+// ── Import de sauvegarde ──────────────────────────────────────────────────────
 
 export async function importBackup(userId, backup) {
   const { products, memory } = backup;
