@@ -64,3 +64,21 @@ create policy "Utilisateur voit sa propre mémoire"
   on flipp_memory for all
   using  (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+
+-- ── Table : shopping_lists ────────────────────────────────────────────────────
+-- Une liste d'épicerie par utilisateur, stockée en JSONB.
+-- items: [{ id, productId, qty, checked }]
+
+create table if not exists shopping_lists (
+  user_id     uuid    primary key references auth.users(id) on delete cascade,
+  items       jsonb   not null default '[]',
+  updated_at  timestamptz not null default now()
+);
+
+alter table shopping_lists enable row level security;
+
+create policy "Utilisateur voit sa propre liste"
+  on shopping_lists for all
+  using  (auth.uid() = user_id)
+  with check (auth.uid() = user_id);

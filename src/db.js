@@ -115,6 +115,25 @@ export async function saveMemory(userId, memory) {
   if (error) throw error;
 }
 
+// ── Liste d'épicerie ──────────────────────────────────────────────────────────
+
+export async function loadShoppingList(userId) {
+  const { data, error } = await supabase
+    .from("shopping_lists")
+    .select("items")
+    .eq("user_id", userId)
+    .single();
+  if (error && error.code !== "PGRST116") throw error;
+  return data?.items ?? [];
+}
+
+export async function saveShoppingList(userId, items) {
+  const { error } = await supabase
+    .from("shopping_lists")
+    .upsert({ user_id: userId, items, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+  if (error) throw error;
+}
+
 // ── Import de sauvegarde (migration depuis Gist) ──────────────────────────────
 
 export async function importBackup(userId, backup) {

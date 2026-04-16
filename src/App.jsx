@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import FlippPanel from "./FlippPanel";
+import ShoppingList from "./ShoppingList";
 import Auth from "./Auth";
 import {
   loadProducts, saveProducts,
   loadMemory, saveMemory,
+  loadShoppingList, saveShoppingList,
   signOut, getSession, onSignOut,
 } from "./db";
 
@@ -232,6 +234,8 @@ export default function App() {
   const [showForm, setShowForm] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showFlipp, setShowFlipp] = useState(false);
+  const [showList, setShowList] = useState(false);
+  const [shoppingList, setShoppingList] = useState([]);
   const [matchMemory, setMatchMemory] = useState({});
   const [form, setForm] = useState(emptyForm);
   const [editId, setEditId] = useState(null);
@@ -250,13 +254,15 @@ export default function App() {
       setUser(u);
       if (u) {
         try {
-          const [prods, mem] = await Promise.all([
+          const [prods, mem, listItems] = await Promise.all([
             loadProducts(u.id),
             loadMemory(u.id),
+            loadShoppingList(u.id),
           ]);
           if (!mounted) return;
           setProducts(prods.length ? prods : SAMPLE_DATA);
           setMatchMemory(mem);
+          setShoppingList(listItems);
         } catch (e) {
           console.error("Erreur chargement données:", e);
         }
@@ -269,6 +275,7 @@ export default function App() {
       setUser(null);
       setProducts(SAMPLE_DATA);
       setMatchMemory({});
+      setShoppingList([]);
     });
     return () => { mounted = false; unsubscribe(); };
   }, []);
@@ -342,6 +349,13 @@ export default function App() {
     }
   };
 
+  const handleListChange = async (newList) => {
+    setShoppingList(newList);
+    if (user) {
+      try { await saveShoppingList(user.id, newList); } catch (e) { console.error("Erreur sauvegarde liste:", e); }
+    }
+  };
+
   if (authLoading) return (
     <div style={{ minHeight: "100vh", background: "#080c14", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <span style={{ color: "#4b5563", fontFamily: "monospace", fontSize: "12px" }}>Chargement...</span>
@@ -384,14 +398,26 @@ export default function App() {
               ⎋
             </button>
             <button
-              onClick={() => { setShowFlipp(v => !v); setShowForm(false); setShowExport(false); }}
+              onClick={() => { setShowList(v => !v); setShowForm(false); setShowFlipp(false); setShowExport(false); }}
+              title="Liste d'épicerie"
+              style={{ background: showList ? "rgba(134,239,172,0.2)" : "rgba(255,255,255,0.05)", border: `1px solid ${showList ? "rgba(134,239,172,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: "10px", padding: "8px 11px", color: showList ? "#86efac" : "#6b7280", cursor: "pointer", fontSize: "14px", position: "relative" }}
+            >
+              🛒
+              {shoppingList.filter(i => !i.checked).length > 0 && (
+                <span style={{ position: "absolute", top: 2, right: 2, background: "#86efac", color: "#052e16", fontSize: "9px", fontWeight: 700, borderRadius: "99px", minWidth: 14, height: 14, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", fontFamily: "monospace" }}>
+                  {shoppingList.filter(i => !i.checked).length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => { setShowFlipp(v => !v); setShowForm(false); setShowExport(false); setShowList(false); }}
               title="Synchroniser les promos Flipp"
               style={{ background: showFlipp ? "rgba(251,191,36,0.2)" : "rgba(255,255,255,0.05)", border: `1px solid ${showFlipp ? "rgba(251,191,36,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: "10px", padding: "8px 11px", color: showFlipp ? "#fbbf24" : "#6b7280", cursor: "pointer", fontSize: "14px" }}
             >
               🏷️
             </button>
             <button
-              onClick={() => { setShowForm(!showForm); setEditId(null); setForm(emptyForm); setShowFlipp(false); setShowExport(false); }}
+              onClick={() => { setShowForm(!showForm); setEditId(null); setForm(emptyForm); setShowFlipp(false); setShowExport(false); setShowList(false); }}
               style={{ background: showForm ? "rgba(239,68,68,0.15)" : "rgba(99,102,241,0.2)", border: `1px solid ${showForm ? "rgba(239,68,68,0.3)" : "rgba(99,102,241,0.4)"}`, borderRadius: "10px", padding: "10px 16px", color: showForm ? "#f87171" : "#a5b4fc", cursor: "pointer", fontSize: "13px", fontWeight: 700, fontFamily: "'Syne', sans-serif" }}
             >
               {showForm ? "✕ Annuler" : "+ Ajouter"}
@@ -494,6 +520,16 @@ export default function App() {
           </label>
         </div>
       </div>
+
+      {/* Shopping List */}
+      {showList && (
+        <ShoppingList
+          products={products}
+          list={shoppingList}
+          onChange={handleListChange}
+          onClose={() => setShowList(false)}
+        />
+      )}
 
       {/* Flipp Panel */}
       {showFlipp && (
