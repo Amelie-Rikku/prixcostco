@@ -55,24 +55,7 @@ Le fichier `.env.local` est déjà présent sur ce serveur. Il ne faut pas le co
 ### Tables existantes (déjà créées ✓)
 - **`products`** — Produits avec prix par magasin (JSONB: costco, maxi, superc)
 - **`flipp_memory`** — Mémorisation des correspondances produit/Flipp
-
-### Table à créer ⚠️
 - **`shopping_lists`** — Liste d'épicerie par utilisateur
-
-SQL à exécuter dans **Supabase Dashboard → SQL Editor** :
-```sql
-create table if not exists shopping_lists (
-  user_id     uuid    primary key references auth.users(id) on delete cascade,
-  items       jsonb   not null default '[]',
-  updated_at  timestamptz not null default now()
-);
-alter table shopping_lists enable row level security;
-create policy "Utilisateur voit sa propre liste"
-  on shopping_lists for all
-  using  (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
-```
-**Cette table n'existe pas encore** — le bouton 🛒 lèvera une erreur tant qu'elle n'est pas créée.
 
 ---
 
