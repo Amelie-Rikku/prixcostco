@@ -75,6 +75,45 @@ Configuré dans `.mcp.json` (à la racine du projet).
 - Ref projet : `sryrjsjqgvxogcimfkez`
 - **Dans la session web (claude.ai/code)** : le réseau bloque Supabase, MCP non disponible
 
+### Comment modifier Supabase depuis une session avec MCP actif
+
+**1. Vérifier que le MCP est connecté**
+Au démarrage de la session, utilise `ToolSearch` pour chercher `supabase`.
+Si des outils `mcp__supabase__*` apparaissent → MCP actif ✓
+Sinon → créer `.mcp.json` à la racine (voir ci-dessus) et redémarrer la session.
+
+**2. Exécuter du SQL**
+Utilise l'outil `mcp__supabase__execute_sql` (ou nom similaire selon la version) :
+```
+Exécute cette migration SQL sur le projet sryrjsjqgvxogcimfkez :
+CREATE TABLE ...
+```
+
+**3. Migration en attente — À faire en priorité**
+La table `shopping_lists` n'existe pas encore. Exécuter :
+```sql
+create table if not exists shopping_lists (
+  user_id     uuid    primary key references auth.users(id) on delete cascade,
+  items       jsonb   not null default '[]',
+  updated_at  timestamptz not null default now()
+);
+alter table shopping_lists enable row level security;
+create policy "Utilisateur voit sa propre liste"
+  on shopping_lists for all
+  using  (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+```
+Après création, mettre à jour cette section : **Table à créer ⚠️** → **Table créée ✓**
+
+**4. Vérifier une table**
+```
+Liste les tables du projet sryrjsjqgvxogcimfkez
+```
+ou
+```
+Décris la structure de la table shopping_lists
+```
+
 ---
 
 ## Fonctionnalités implémentées ✓
