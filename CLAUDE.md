@@ -89,21 +89,8 @@ Exécute cette migration SQL sur le projet sryrjsjqgvxogcimfkez :
 CREATE TABLE ...
 ```
 
-**3. Migration en attente — À faire en priorité**
-La table `shopping_lists` n'existe pas encore. Exécuter :
-```sql
-create table if not exists shopping_lists (
-  user_id     uuid    primary key references auth.users(id) on delete cascade,
-  items       jsonb   not null default '[]',
-  updated_at  timestamptz not null default now()
-);
-alter table shopping_lists enable row level security;
-create policy "Utilisateur voit sa propre liste"
-  on shopping_lists for all
-  using  (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
-```
-Après création, mettre à jour cette section : **Table à créer ⚠️** → **Table créée ✓**
+**3. Migrations en attente**
+Aucune migration en attente — toutes les tables sont créées ✓
 
 **4. Vérifier une table**
 ```
@@ -130,7 +117,7 @@ Décris la structure de la table shopping_lists
 ### Phase 1.5 — Liste d'épicerie
 - [x] `ShoppingList.jsx` — recherche depuis le catalogue, quantités, cases à cocher
 - [x] Totaux par magasin avec badge MEILLEUR
-- [x] Sauvegarde dans Supabase (`shopping_lists` table — **à créer**)
+- [x] Sauvegarde dans Supabase (`shopping_lists` table ✓)
 - [x] Bouton 🛒 dans le header avec compteur d'articles actifs
 
 ---
