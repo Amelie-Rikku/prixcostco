@@ -5,3 +5,4 @@ dist/
 .env.*.local
 .mcp.json
 .claude-plugin/
+.claude/settings.local.json
