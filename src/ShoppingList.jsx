@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
+import { findTopMatches } from "./fuzzyMatch";
 
 const STORES = ["costco", "maxi", "superc"];
 const STORE_LABELS = { costco: "Costco", maxi: "Maxi", superc: "Super C" };
@@ -33,8 +34,6 @@ function calcStoreTotals(activeItems, products) {
     return { store, total, complete };
   });
 }
-
-// ── ListItem ──────────────────────────────────────────────────────────────────
 
 function ListItem({ item, product, onToggle, onRemove, onQty }) {
   const bestStore = item.checked ? null : getBestStore(product);
@@ -85,10 +84,78 @@ function ListItem({ item, product, onToggle, onRemove, onQty }) {
   );
 }
 
+// ── ImportPanel ───────────────────────────────────────────────────────────────
+
+function ImportPanel({ results, onToggle, onConfirm, onCancel }) {
+  const matched   = results.map((r, i) => ({ ...r, originalIdx: i })).filter(r => r.product);
+  const missing   = results.filter(r => !r.product);
+  const enabled   = matched.filter(r => r.enabled);
+
+  return (
+    <div style={{ margin: "0 0 12px", padding: "12px 14px", background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: "12px" }}>
+      <div style={{ fontSize: "10px", fontFamily: "monospace", letterSpacing: "0.1em", color: "#a5b4fc", marginBottom: 10 }}>
+        RÉSULTATS D'IMPORTATION
+      </div>
+
+      {matched.length > 0 && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: "9px", color: "#6b7280", fontFamily: "monospace", marginBottom: 6, letterSpacing: "0.08em" }}>
+            TROUVÉS ({matched.length})
+          </div>
+          {matched.map((r) => (
+            <div key={r.originalIdx} onClick={() => onToggle(r.originalIdx)}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 4px", cursor: "pointer", borderRadius: "6px", marginBottom: 2,
+                background: r.enabled ? "rgba(134,239,172,0.06)" : "rgba(255,255,255,0.02)" }}>
+              <input type="checkbox" checked={r.enabled} onChange={() => onToggle(r.originalIdx)}
+                style={{ accentColor: "#86efac", cursor: "pointer", flexShrink: 0 }} />
+              <span style={{ flex: 1, fontSize: "11px", color: "#94a3b8", fontFamily: "monospace", textDecoration: "line-through" }}>
+                {r.line}
+              </span>
+              <span style={{ fontSize: "9px", color: "#4b5563", fontFamily: "monospace" }}>→</span>
+              <span style={{ fontSize: "12px", color: r.enabled ? "#86efac" : "#6b7280", fontFamily: "monospace" }}>
+                {r.product.name}
+              </span>
+              <span style={{ fontSize: "9px", color: "#4b5563", fontFamily: "monospace" }}>
+                {Math.round(r.score * 100)}%
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {missing.length > 0 && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: "9px", color: "#f87171", fontFamily: "monospace", marginBottom: 6, letterSpacing: "0.08em" }}>
+            INTROUVABLES ({missing.length})
+          </div>
+          {missing.map((r, i) => (
+            <div key={i} style={{ fontSize: "12px", color: "#4b5563", fontFamily: "monospace", padding: "3px 4px" }}>
+              ✕ {r.line}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <button onClick={onCancel}
+          style={{ flex: 1, padding: "8px", borderRadius: "8px", border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#f87171", cursor: "pointer", fontSize: "12px", fontFamily: "monospace" }}>
+          Annuler
+        </button>
+        <button onClick={onConfirm} disabled={enabled.length === 0}
+          style={{ flex: 2, padding: "8px", borderRadius: "8px", border: "1px solid rgba(134,239,172,0.4)", background: enabled.length > 0 ? "rgba(134,239,172,0.12)" : "rgba(255,255,255,0.03)", color: enabled.length > 0 ? "#86efac" : "#4b5563", cursor: enabled.length > 0 ? "pointer" : "default", fontSize: "12px", fontFamily: "monospace", fontWeight: 700 }}>
+          ✓ Ajouter {enabled.length} article{enabled.length > 1 ? "s" : ""}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── ShoppingList ──────────────────────────────────────────────────────────────
 
 export default function ShoppingList({ products, list, onChange, onClose }) {
   const [search, setSearch] = useState("");
+  const [importResults, setImportResults] = useState(null);
+  const fileInputRef = useRef(null);
 
   const activeItems  = list.filter(i => !i.checked);
   const checkedItems = list.filter(i => i.checked);
@@ -113,6 +180,47 @@ export default function ShoppingList({ products, list, onChange, onClose }) {
   const clearChecked = () => onChange(list.filter(i => !i.checked));
   const clearAll     = () => onChange([]);
 
+  const handleFileImport = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const lines = ev.target.result
+        .split(/\r?\n/)
+        .map(l => l.trim())
+        .filter(l => l.length > 0);
+
+      // Adapt products to the shape findTopMatches expects: { name }
+      const catalogItems = products.map(p => ({ ...p, name: p.name }));
+
+      const results = lines.map(line => {
+        const matches = findTopMatches(line, catalogItems, 1);
+        if (matches.length === 0 || matches[0].score < 0.15) {
+          return { line, product: null, score: 0, enabled: false };
+        }
+        const product = matches[0].item;
+        const alreadyInList = list.some(i => i.productId === product.id);
+        return { line, product, score: matches[0].score, enabled: !alreadyInList };
+      });
+
+      setImportResults(results);
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
+  const handleImportToggle = (idx) => {
+    setImportResults(prev => prev.map((r, i) => i === idx ? { ...r, enabled: !r.enabled } : r));
+  };
+
+  const handleImportConfirm = () => {
+    const toAdd = importResults
+      .filter(r => r.product && r.enabled && !list.some(i => i.productId === r.product.id))
+      .map(r => ({ id: Date.now() + Math.random(), productId: r.product.id, qty: 1, checked: false }));
+    onChange([...list, ...toAdd]);
+    setImportResults(null);
+  };
+
   return (
     <div style={{ padding: "16px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(10,18,32,0.95)" }}>
 
@@ -127,6 +235,11 @@ export default function ShoppingList({ products, list, onChange, onClose }) {
           )}
         </div>
         <div style={{ display: "flex", gap: 6 }}>
+          <label title="Importer une liste texte"
+            style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: "7px", padding: "4px 10px", color: "#a5b4fc", cursor: "pointer", fontSize: "11px", fontFamily: "monospace" }}>
+            📄 Importer
+            <input ref={fileInputRef} type="file" accept=".txt" style={{ display: "none" }} onChange={handleFileImport} />
+          </label>
           {checkedItems.length > 0 && (
             <button onClick={clearChecked}
               style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: "7px", padding: "4px 10px", color: "#f87171", cursor: "pointer", fontSize: "11px", fontFamily: "monospace" }}>
@@ -145,6 +258,16 @@ export default function ShoppingList({ products, list, onChange, onClose }) {
           </button>
         </div>
       </div>
+
+      {/* Import panel */}
+      {importResults && (
+        <ImportPanel
+          results={importResults}
+          onToggle={handleImportToggle}
+          onConfirm={handleImportConfirm}
+          onCancel={() => setImportResults(null)}
+        />
+      )}
 
       {/* Search / Add */}
       <div style={{ position: "relative", marginBottom: 12 }}>
